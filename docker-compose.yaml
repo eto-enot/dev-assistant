@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:18
+    volumes:
+      - ./pgdata:/var/lib/postgresql
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+    networks:
+      - back_net
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+
+  vllm:
+    build: vllm-cuda
+    runtime: nvidia
+    ipc: host
+    volumes:
+      - ./vllm-cache:/root/.cache
+    ports:
+      - 8000:8000
+    command: ${VLLM_MODEL}
+    networks:
+      - back_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 30
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['${VLLM_GPU_DEVICE}']
+            capabilities: [gpu]
+
+  chat:
+    image: ghcr.io/fmaclen/hollama:latest
+    ports:
+      - 3000:4173
+    depends_on:
+      vllm:
+        condition: service_healthy
+    networks:
+      - back_net
+
+networks:
+  back_net:
