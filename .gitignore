@@ -2,7 +2,7 @@ __pycache__/
 .env
 .venv/
 pgdata/
-dev-assistant-rag/data/
-dev-assistant-rag/context/
+dev-assistant/data/
+dev-assistant/context/
 
 *.pyc
