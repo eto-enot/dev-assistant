@@ -17,15 +17,22 @@ services:
       timeout: 3s
       retries: 3
 
-  vllm:
+  vllm_llm:
     build: vllm-cuda
     runtime: nvidia
     ipc: host
     volumes:
       - ./vllm-cache:/root/.cache
-    ports:
-      - 8000:8000
-    command: ${VLLM_MODEL}
+      - ./etc/vllm_logging.json:/root/vllm_logging.json
+    environment:
+      - VLLM_LOGGING_CONFIG_PATH=/root/vllm_logging.json
+      # - VLLM_DEBUG_LOG_API_SERVER_RESPONSE=true
+    command: >
+      ${VLLM_LLM_MODEL}
+      --served_model_name 'Coder LLM'
+      --enable-log-outputs --enable-log-requests
+      --gpu-memory-utilization 0.35
+      --dtype bfloat16
     networks:
       - back_net
     healthcheck:
@@ -41,13 +48,58 @@ services:
             device_ids: ['${VLLM_GPU_DEVICE}']
             capabilities: [gpu]
 
+  vllm_emb:
+    build: vllm-cuda
+    runtime: nvidia
+    ipc: host
+    volumes:
+      - ./vllm-cache:/root/.cache
+      - ./etc/vllm_logging.json:/root/vllm_logging.json
+    environment:
+      - VLLM_LOGGING_CONFIG_PATH=/root/vllm_logging.json
+      # - VLLM_DEBUG_LOG_API_SERVER_RESPONSE=true
+    command: >
+      ${VLLM_EMB_MODEL}
+      --served_model_name 'Embedding Model'
+      --enable-log-outputs --enable-log-requests
+      --gpu-memory-utilization 0.1
+      --dtype bfloat16
+    networks:
+      - back_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 30
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['${VLLM_GPU_DEVICE}']
+            capabilities: [gpu]
+
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.80.11-stable.1
+    volumes:
+      - ./etc/litellm_config.yaml:/app/config.yaml
+    ports:
+      - 4000:4000
+    networks:
+      - back_net
+    command: --config /app/config.yaml
+    depends_on:
+      vllm_llm:
+        condition: service_healthy
+      vllm_emb:
+        condition: service_healthy
+
   chat:
     image: ghcr.io/fmaclen/hollama:latest
     ports:
       - 3000:4173
     depends_on:
-      vllm:
-        condition: service_healthy
+      - litellm
     networks:
       - back_net
 

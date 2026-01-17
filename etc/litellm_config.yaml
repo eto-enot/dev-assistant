@@ -1,0 +1,11 @@
+model_list:
+  - model_name: Coder LLM
+    litellm_params:
+      model: openai/Coder LLM
+      api_base: http://vllm_llm:8000/v1
+      api_key: none
+  - model_name: Embedding Model
+    litellm_params:
+      model: openai/Embedding Model
+      api_base: http://vllm_emb:8000/v1
+      api_key: none

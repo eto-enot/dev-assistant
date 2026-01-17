@@ -1,0 +1,23 @@
+{
+  "formatters": {
+    "json": {
+      "class": "pythonjsonlogger.jsonlogger.JsonFormatter"
+    }
+  },
+  "handlers": {
+    "console": {
+      "class" : "logging.StreamHandler",
+      "formatter": "json",
+      "level": "DEBUG",
+      "stream": "ext://sys.stdout"
+    }
+  },
+  "loggers": {
+    "vllm": {
+      "handlers": ["console"],
+      "level": "DEBUG",
+      "propagate": false
+    }
+  },
+  "version": 1
+}
