@@ -1,2 +1,8 @@
+__pycache__/
 .env
-.venv
+.venv/
+pgdata/
+dev-assistant-rag/data/
+dev-assistant-rag/context/
+
+*.pyc
