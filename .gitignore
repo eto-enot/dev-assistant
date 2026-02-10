@@ -4,5 +4,6 @@ __pycache__/
 pgdata/
 dev-assistant/data/
 dev-assistant/context/
+vllm-cache/
 
 *.pyc

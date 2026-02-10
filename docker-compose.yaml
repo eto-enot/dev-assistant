@@ -1,21 +1,21 @@
 services:
-  db:
-    image: postgres:18
-    volumes:
-      - ./pgdata:/var/lib/postgresql
-    ports:
-      - 5432:5432
-    environment:
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_DB=${POSTGRES_DB}
-    networks:
-      - back_net
-    healthcheck:
-      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'"]
-      interval: 15s
-      timeout: 3s
-      retries: 3
+  # db:
+  #   image: postgres:18
+  #   volumes:
+  #     - ./pgdata:/var/lib/postgresql
+  #   ports:
+  #     - 5432:5432
+  #   environment:
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #     - POSTGRES_USER=${POSTGRES_USER}
+  #     - POSTGRES_DB=${POSTGRES_DB}
+  #   networks:
+  #     - back_net
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'"]
+  #     interval: 15s
+  #     timeout: 3s
+  #     retries: 3
 
   vllm_llm:
     build: vllm-cuda
@@ -34,8 +34,9 @@ services:
       --enable-log-requests
       --enable-auto-tool-choice
       --tool-call-parser hermes
-      --gpu-memory-utilization 0.35
+      --gpu-memory-utilization 0.4
       --dtype bfloat16
+      --speculative-config '{"model": "ngram", "num_speculative_tokens": 5, "prompt_lookup_max": 4}'
     networks:
       - back_net
     healthcheck:
@@ -63,6 +64,7 @@ services:
       # - VLLM_DEBUG_LOG_API_SERVER_RESPONSE=true
     command: >
       ${VLLM_EMB_MODEL}
+      -tp 1
       --served_model_name 'Embedding Model'
       --enable-log-outputs --enable-log-requests
       --gpu-memory-utilization 0.1
