@@ -24,89 +24,85 @@
     
 Метрики качества извлечения, полученные на данном наборе данных, представлены в следующей таблице. Для расчета метрик использовалась библиотека [beir](https://github.com/beir-cellar/beir).
 
-<style type="text/css">
-#T_e59bf_row3_col4, #T_e59bf_row3_col7, #T_e59bf_row4_col0, #T_e59bf_row4_col1, #T_e59bf_row4_col2, #T_e59bf_row4_col3, #T_e59bf_row4_col5, #T_e59bf_row4_col6, #T_e59bf_row4_col8 {
-  background-color: lightgreen;
-}
-</style>
-<table id="T_e59bf">
+<table>
   <thead>
     <tr>
-      <th class="blank level0" >&nbsp;</th>
-      <th id="T_e59bf_level0_col0" class="col_heading level0 col0" >NDCG@3</th>
-      <th id="T_e59bf_level0_col1" class="col_heading level0 col1" >NDCG@5</th>
-      <th id="T_e59bf_level0_col2" class="col_heading level0 col2" >NDCG@10</th>
-      <th id="T_e59bf_level0_col3" class="col_heading level0 col3" >Recall@3</th>
-      <th id="T_e59bf_level0_col4" class="col_heading level0 col4" >Recall@5</th>
-      <th id="T_e59bf_level0_col5" class="col_heading level0 col5" >Recall@10</th>
-      <th id="T_e59bf_level0_col6" class="col_heading level0 col6" >P@3</th>
-      <th id="T_e59bf_level0_col7" class="col_heading level0 col7" >P@5</th>
-      <th id="T_e59bf_level0_col8" class="col_heading level0 col8" >P@10</th>
+      <th >&nbsp;</th>
+      <th >NDCG@3</th>
+      <th >NDCG@5</th>
+      <th >NDCG@10</th>
+      <th >Recall@3</th>
+      <th >Recall@5</th>
+      <th >Recall@10</th>
+      <th >P@3</th>
+      <th >P@5</th>
+      <th >P@10</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <th id="T_e59bf_level0_row0" class="row_heading level0 row0" >Random</th>
-      <td id="T_e59bf_row0_col0" class="data row0 col0" >0.0141</td>
-      <td id="T_e59bf_row0_col1" class="data row0 col1" >0.0164</td>
-      <td id="T_e59bf_row0_col2" class="data row0 col2" >0.0267</td>
-      <td id="T_e59bf_row0_col3" class="data row0 col3" >0.0185</td>
-      <td id="T_e59bf_row0_col4" class="data row0 col4" >0.0235</td>
-      <td id="T_e59bf_row0_col5" class="data row0 col5" >0.0568</td>
-      <td id="T_e59bf_row0_col6" class="data row0 col6" >0.0068</td>
-      <td id="T_e59bf_row0_col7" class="data row0 col7" >0.0056</td>
-      <td id="T_e59bf_row0_col8" class="data row0 col8" >0.0063</td>
+      <th >Random</th>
+      <td >0.0141</td>
+      <td >0.0164</td>
+      <td >0.0267</td>
+      <td >0.0185</td>
+      <td >0.0235</td>
+      <td >0.0568</td>
+      <td >0.0068</td>
+      <td >0.0056</td>
+      <td >0.0063</td>
     </tr>
     <tr>
-      <th id="T_e59bf_level0_row1" class="row_heading level0 row1" >BM25</th>
-      <td id="T_e59bf_row1_col0" class="data row1 col0" >0.2564</td>
-      <td id="T_e59bf_row1_col1" class="data row1 col1" >0.2933</td>
-      <td id="T_e59bf_row1_col2" class="data row1 col2" >0.3335</td>
-      <td id="T_e59bf_row1_col3" class="data row1 col3" >0.3026</td>
-      <td id="T_e59bf_row1_col4" class="data row1 col4" >0.3907</td>
-      <td id="T_e59bf_row1_col5" class="data row1 col5" >0.5123</td>
-      <td id="T_e59bf_row1_col6" class="data row1 col6" >0.1097</td>
-      <td id="T_e59bf_row1_col7" class="data row1 col7" >0.0854</td>
-      <td id="T_e59bf_row1_col8" class="data row1 col8" >0.0567</td>
+      <th >BM25</th>
+      <td >0.2564</td>
+      <td >0.2933</td>
+      <td >0.3335</td>
+      <td >0.3026</td>
+      <td >0.3907</td>
+      <td >0.5123</td>
+      <td >0.1097</td>
+      <td >0.0854</td>
+      <td >0.0567</td>
     </tr>
     <tr>
-      <th id="T_e59bf_level0_row2" class="row_heading level0 row2" >SentenceSplitter</th>
-      <td id="T_e59bf_row2_col0" class="data row2 col0" >0.5996</td>
-      <td id="T_e59bf_row2_col1" class="data row2 col1" >0.6172</td>
-      <td id="T_e59bf_row2_col2" class="data row2 col2" >0.6193</td>
-      <td id="T_e59bf_row2_col3" class="data row2 col3" >0.6884</td>
-      <td id="T_e59bf_row2_col4" class="data row2 col4" >0.7281</td>
-      <td id="T_e59bf_row2_col5" class="data row2 col5" >0.7339</td>
-      <td id="T_e59bf_row2_col6" class="data row2 col6" >0.2450</td>
-      <td id="T_e59bf_row2_col7" class="data row2 col7" >0.1573</td>
-      <td id="T_e59bf_row2_col8" class="data row2 col8" >0.0792</td>
+      <th >SentenceSplitter</th>
+      <td >0.5996</td>
+      <td >0.6172</td>
+      <td >0.6193</td>
+      <td >0.6884</td>
+      <td >0.7281</td>
+      <td >0.7339</td>
+      <td >0.2450</td>
+      <td >0.1573</td>
+      <td >0.0792</td>
     </tr>
     <tr>
-      <th id="T_e59bf_level0_row3" class="row_heading level0 row3" >CodeSplitter</th>
-      <td id="T_e59bf_row3_col0" class="data row3 col0" >0.5889</td>
-      <td id="T_e59bf_row3_col1" class="data row3 col1" >0.6265</td>
-      <td id="T_e59bf_row3_col2" class="data row3 col2" >0.6291</td>
-      <td id="T_e59bf_row3_col3" class="data row3 col3" >0.7203</td>
-      <td id="T_e59bf_row3_col4" class="data row3 col4" >0.8080</td>
-      <td id="T_e59bf_row3_col5" class="data row3 col5" >0.8153</td>
-      <td id="T_e59bf_row3_col6" class="data row3 col6" >0.2573</td>
-      <td id="T_e59bf_row3_col7" class="data row3 col7" >0.1742</td>
-      <td id="T_e59bf_row3_col8" class="data row3 col8" >0.0880</td>
+      <th >CodeSplitter</th>
+      <td >0.5889</td>
+      <td >0.6265</td>
+      <td >0.6291</td>
+      <td >0.7203</td>
+      <td ><b>0.8080</b></td>
+      <td >0.8153</td>
+      <td >0.2573</td>
+      <td ><b>0.1742</b></td>
+      <td >0.0880</td>
     </tr>
     <tr>
-      <th id="T_e59bf_level0_row4" class="row_heading level0 row4" >AST Splitter</th>
-      <td id="T_e59bf_row4_col0" class="data row4 col0" >0.6072</td>
-      <td id="T_e59bf_row4_col1" class="data row4 col1" >0.6360</td>
-      <td id="T_e59bf_row4_col2" class="data row4 col2" >0.6413</td>
-      <td id="T_e59bf_row4_col3" class="data row4 col3" >0.7380</td>
-      <td id="T_e59bf_row4_col4" class="data row4 col4" >0.8056</td>
-      <td id="T_e59bf_row4_col5" class="data row4 col5" >0.8206</td>
-      <td id="T_e59bf_row4_col6" class="data row4 col6" >0.2644</td>
-      <td id="T_e59bf_row4_col7" class="data row4 col7" >0.1740</td>
-      <td id="T_e59bf_row4_col8" class="data row4 col8" >0.0885</td>
+      <th >AST Splitter</th>
+      <td ><b>0.6072</b></td>
+      <td ><b>0.6360</b></td>
+      <td ><b>0.6413</b></td>
+      <td ><b>0.7380</b></td>
+      <td >0.8056</td>
+      <td ><b>0.8206</b></td>
+      <td ><b>0.2644</b></td>
+      <td >0.1740</td>
+      <td ><b>0.0885</b></td>
     </tr>
   </tbody>
 </table>
+
 
 Новый алгоритм в целом показывает увеличение качества извлечения по сравнению со стандартными методами LlamaIndex.
 
