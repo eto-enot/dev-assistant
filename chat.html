@@ -505,9 +505,7 @@
 <body>
     <header>
         <div class="logo">
-            <i class="fas fa-robot"></i>
             <h1>Developer Assistant</h1>
-            <span class="model-tag" id="model-tag">Coder LLM</span>
         </div>
         <div class="api-config">
             <select id="model-select">
@@ -848,7 +846,9 @@
                     const data = line.substring(6);
                     
                     // Skip [DONE] message
-                    if (data === '[DONE]') continue;
+                    if (data === '[DONE]') {
+                        continue;
+                    }
                     
                     try {
                         const parsed = JSON.parse(data);

@@ -7,20 +7,20 @@ import os
 from banks import ChatMessage
 from fastapi.responses import JSONResponse
 from fastapi import Request, Response
-from agent import DevAssistantAgent
+from agent import DevAssistantAgent, DevAssistantConfig, DevAssistantRag
 from starlette.middleware.cors import CORSMiddleware
-
-
-API_BASE_URL_KEY = 'API_BASE_URL'
+import asyncio
 
 
 class LlamaIndexAPI(ls.LitAPI):
-    def __init__(self, api_url, **kwargs):
+    def __init__(self, config: DevAssistantConfig, **kwargs):
         super().__init__(**kwargs)
-        self.api_url = api_url
+        self.config = config
     
     def setup(self, device):
-        self.llm = DevAssistantAgent(self.api_url)
+        rag = DevAssistantRag(self.config)
+        rag._init_engine()
+        self.llm = DevAssistantAgent(rag)
 
     async def predict(self, x, **kwargs):
         async for token in self.llm.stream(x):
@@ -55,8 +55,7 @@ if __name__ == "__main__":
     # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     # logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-    if not API_BASE_URL_KEY in os.environ:
-        raise ValueError('API base url not specified.')
+    config = DevAssistantConfig.from_env()
     
     middlewares=[
         (CORSMiddleware, {
@@ -67,7 +66,6 @@ if __name__ == "__main__":
         }),
     ]
 
-    api_url = os.environ[API_BASE_URL_KEY]    
-    api = LlamaIndexAPI(api_url, spec=OpenAISpecModels(api_url), stream=True, enable_async=True)
+    api = LlamaIndexAPI(config, spec=OpenAISpecModels(config.api_base), stream=True, enable_async=True)
     server = ls.LitServer(api, middlewares=middlewares)
     server.run(port=8000, generate_client_file=False)
