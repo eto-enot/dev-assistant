@@ -28,7 +28,9 @@ services:
       --tool-call-parser hermes
       --gpu-memory-utilization 0.45
       --dtype bfloat16
-      --speculative-config '{"method": "draft_model", "model": "${VLLM_LLM_DRAFT_MODEL}", "num_speculative_tokens": 5}'
+      --max-num-seqs 16
+      --max-num-batched-tokens 2048
+      --speculative-config '{"method": "draft_model", "model": "${VLLM_LLM_DRAFT_MODEL}", "num_speculative_tokens": 7}'
     networks:
       - back_net
     healthcheck:
