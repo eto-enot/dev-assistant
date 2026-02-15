@@ -93,14 +93,28 @@ services:
       vllm_emb:
         condition: service_healthy
 
-  # chat:
-  #   image: ghcr.io/fmaclen/hollama:latest
-  #   ports:
-  #     - 3000:4173
-  #   depends_on:
-  #     - litellm
-  #   networks:
-  #     - back_net
+  prometheus:
+    image: prom/prometheus:v3.9.1
+    ports:
+      - 9090:9090
+    volumes:
+      - ./etc/prometheus.yaml:/etc/prometheus/prometheus.yml
+    networks:
+      - back_net
+    depends_on:
+      vllm_llm:
+        condition: service_healthy
+      vllm_emb:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:12.3
+    ports:
+      - 3000:3000
+    networks:
+      - back_net
+    depends_on:
+      - prometheus
 
 networks:
   back_net:
