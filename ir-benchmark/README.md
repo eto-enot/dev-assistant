@@ -27,16 +27,21 @@
 <table>
   <thead>
     <tr>
-      <th >&nbsp;</th>
-      <th >NDCG@3</th>
-      <th >NDCG@5</th>
-      <th >NDCG@10</th>
-      <th >Recall@3</th>
-      <th >Recall@5</th>
-      <th >Recall@10</th>
-      <th >P@3</th>
-      <th >P@5</th>
-      <th >P@10</th>
+      <th rowspan="2">&nbsp;</th>
+      <th colspan="3">NDCG $\uparrow$</th>
+      <th colspan="3">Recall $\uparrow$</th>
+      <th colspan="3">Precision $\uparrow$</th>
+    </tr>
+    <tr>
+      <th >$k = 3 $</th>
+      <th >$k = 5 $</th>
+      <th >$k = 10$</th>
+      <th >$k = 3 $</th>
+      <th >$k = 5 $</th>
+      <th >$k = 10$</th>
+      <th >$k = 3 $</th>
+      <th >$k = 5 $</th>
+      <th >$k = 10$</th>
     </tr>
   </thead>
   <tbody>
@@ -66,7 +71,7 @@
     </tr>
     <tr>
       <th >SentenceSplitter</th>
-      <td >0.5996</td>
+      <td ><ins>0.5996</ins></td>
       <td >0.6172</td>
       <td >0.6193</td>
       <td >0.6884</td>
@@ -79,14 +84,14 @@
     <tr>
       <th >CodeSplitter</th>
       <td >0.5889</td>
-      <td >0.6265</td>
-      <td >0.6291</td>
-      <td >0.7203</td>
+      <td ><ins>0.6265</ins></td>
+      <td ><ins>0.6291</ins></td>
+      <td ><ins>0.7203</ins></td>
       <td ><b>0.8080</b></td>
-      <td >0.8153</td>
-      <td >0.2573</td>
+      <td ><ins>0.8153</ins></td>
+      <td ><ins>0.2573</ins></td>
       <td ><b>0.1742</b></td>
-      <td >0.0880</td>
+      <td ><ins>0.0880</ins></td>
     </tr>
     <tr>
       <th >AST Splitter</th>
@@ -94,10 +99,10 @@
       <td ><b>0.6360</b></td>
       <td ><b>0.6413</b></td>
       <td ><b>0.7380</b></td>
-      <td ><u>0.8056</u></td>
+      <td ><ins>0.8056</ins></td>
       <td ><b>0.8206</b></td>
       <td ><b>0.2644</b></td>
-      <td ><u>0.1740</u></td>
+      <td ><ins>0.1740</ins></td>
       <td ><b>0.0885</b></td>
     </tr>
   </tbody>
