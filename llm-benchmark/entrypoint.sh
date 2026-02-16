@@ -15,6 +15,7 @@ dataset=${DATASET_NAME:-sharegpt}
 request_rate=${REQUEST_RATE:-4}
 
 extra_args=("$@")
+echo "Extra args: ${extra_args[@]}"
 
 case "$dataset" in
     sharegpt)

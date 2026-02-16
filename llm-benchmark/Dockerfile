@@ -5,4 +5,4 @@ RUN pip install --no-cache-dir vllm[bench]
 COPY question.jsonl ShareGPT_V3_unfiltered_cleaned_split.json /root/
 COPY entrypoint.sh /root/
 
-ENTRYPOINT [ "sh", "-c", "/root/entrypoint.sh" ]
+ENTRYPOINT [ "bash", "/root/entrypoint.sh" ]
