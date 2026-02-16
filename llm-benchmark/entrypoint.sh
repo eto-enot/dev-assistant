@@ -14,6 +14,8 @@ num_prompts=${NUM_PROMPTS:-10}
 dataset=${DATASET_NAME:-sharegpt}
 request_rate=${REQUEST_RATE:-4}
 
+extra_args=("$@")
+
 case "$dataset" in
     sharegpt)
         dataset_path=/root/ShareGPT_V3_unfiltered_cleaned_split.json
@@ -36,4 +38,5 @@ vllm bench serve --backend vllm \
     --dataset-name "$dataset" \
     --dataset-path "$dataset_path" \
     --num-prompts $num_prompts \
-    --request-rate $request_rate
+    --request-rate $request_rate \
+    "${extra_args[@]}"
