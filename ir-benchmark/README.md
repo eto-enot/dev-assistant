@@ -28,9 +28,9 @@
   <thead>
     <tr>
       <th rowspan="2">&nbsp;</th>
-      <th colspan="3">NDCG $\uparrow$</th>
-      <th colspan="3">Recall $\uparrow$</th>
-      <th colspan="3">Precision $\uparrow$</th>
+      <th colspan="3">NDCG@k $\uparrow$</th>
+      <th colspan="3">Recall@k $\uparrow$</th>
+      <th colspan="3">Precision@k $\uparrow$</th>
       <th rowspan="2">Mean Latency (ms) $\downarrow$</th>
       <th rowspan="2">Mean Score $\uparrow$</th>
     </tr>
