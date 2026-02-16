@@ -31,6 +31,8 @@
       <th colspan="3">NDCG $\uparrow$</th>
       <th colspan="3">Recall $\uparrow$</th>
       <th colspan="3">Precision $\uparrow$</th>
+      <th rowspan="2">Mean Latency (ms) $\downarrow$</th>
+      <th rowspan="2">Mean Score $\uparrow$</th>
     </tr>
     <tr>
       <th >$k = 3 $</th>
@@ -56,6 +58,8 @@
       <td >0.0068</td>
       <td >0.0056</td>
       <td >0.0063</td>
+      <td >-</td>
+      <td >-</td>
     </tr>
     <tr>
       <th >BM25</th>
@@ -68,6 +72,8 @@
       <td >0.1097</td>
       <td >0.0854</td>
       <td >0.0567</td>
+      <td >-</td>
+      <td >-</td>
     </tr>
     <tr>
       <th >SentenceSplitter</th>
@@ -80,6 +86,8 @@
       <td >0.2450</td>
       <td >0.1573</td>
       <td >0.0792</td>
+      <td><b>372.6455</b></td>
+      <td>0.5694</td>
     </tr>
     <tr>
       <th >CodeSplitter</th>
@@ -92,6 +100,8 @@
       <td ><ins>0.2573</ins></td>
       <td ><b>0.1742</b></td>
       <td ><ins>0.0880</ins></td>
+      <td><ins>500.4722</ins></td>
+      <td><ins>0.6027</ins></td>
     </tr>
     <tr>
       <th >AST Splitter</th>
@@ -104,12 +114,14 @@
       <td ><b>0.2644</b></td>
       <td ><ins>0.1740</ins></td>
       <td ><b>0.0885</b></td>
+      <td>582.9660</td>
+      <td><b>0.6123<b></td>
     </tr>
   </tbody>
 </table>
 
 
-Новый алгоритм в целом показывает увеличение качества извлечения по сравнению со стандартными методами LlamaIndex.
+Новый алгоритм в целом показывает увеличение качества извлечения по сравнению со стандартными методами LlamaIndex. Увеличение задержки связано с необходимостью извлечения иерархической структуры узлов с данными.
 
 Ноутбуки:
 - `make_dataset` - построение набора данных для бенчмарка.
