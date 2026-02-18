@@ -1,7 +1,8 @@
 import type { Role, Settings } from './types';
 
 export const DEFAULT_SETTINGS: Settings = {
-    apiUrl: 'http://localhost:5002/v1/chat/completions'
+    model: 'Coder LLM',
+    apiUrl: 'http://localhost:5002/v1/chat/completions',
 }
 
 export function generateId() {

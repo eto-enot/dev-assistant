@@ -507,3 +507,20 @@ textarea:focus {
 code.hljs {
     overflow-x: visible !important;
 }
+
+.btn {
+  background-color: darkslategray;
+  border: 1px solid #565869;
+  color: white;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn:hover {
+  background-color: #2d2d3a;
+}

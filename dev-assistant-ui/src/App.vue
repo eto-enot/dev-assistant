@@ -4,6 +4,8 @@ import { generateId, processStreamResponse, Message, DEFAULT_SETTINGS } from './
 import type { Conversations, Role, Settings } from './types';
 import hljs from 'highlight.js';
 import Prompt from './Prompt.vue';
+import Messages from './Messages.vue';
+import SettingsDialog from './Settings.vue';
 
 interface HistoryListItem {
     id: string;
@@ -14,12 +16,12 @@ interface HistoryListItem {
 const models = ['Coder LLM'];
 
 const settings = ref(<Settings> JSON.parse(sessionStorage.getItem('settings') ?? 'null') || DEFAULT_SETTINGS);
-const selectedModel = ref(models[0]);
 const historyList = ref<HistoryListItem[]>([]);
 const messages = ref<Message[]>([]);
 const sendDisabled = ref(false);
 
-const messagesContainerRef = useTemplateRef('messagesContainer')
+const messagesContainerRef = useTemplateRef('messagesContainer');
+const settingsDialogRef = useTemplateRef('settingsDialog');
 
 let isStreaming = false;
 
@@ -97,7 +99,7 @@ function displayConversation(id: string) {
 
     // Scroll to bottom
     if (messagesContainerRef.value)
-        messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
+        messagesContainerRef.value.scrollTop();
 }
 
 // Start a new chat
@@ -168,7 +170,7 @@ function updateMessageContent(messageId: string, content: string) {
 
         // Scroll to bottom
         if (messagesContainerRef.value)
-            messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
+            messagesContainerRef.value.scrollTop();
     }
 }
 
@@ -212,7 +214,7 @@ function addMessageToUI(role: Role, content: string, scroll = true) {
     messages.value.push(message);
 
     if (scroll && messagesContainerRef.value) {
-        messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
+        messagesContainerRef.value.scrollTop();
     }
 
     return messageId;
@@ -232,7 +234,7 @@ async function sendMessage(message: string) {
     // Add assistant placeholder message
     const messageId = addMessageToUI('assistant', '');
 
-    const model = selectedModel.value;
+    const model = settings.value.model;
 
     // Save user message to conversation history
     saveMessageToConversation('user', message);
@@ -292,9 +294,15 @@ function removeConversation(item: HistoryListItem) {
     }
 }
 
-watch(settings, function (newValue) {
-    sessionStorage.setItem('settings', JSON.stringify(newValue));
-}, {deep: true});
+async function showSettings() {
+    try {
+        await settingsDialogRef.value?.showModal();
+        sessionStorage.setItem('settings', JSON.stringify(settings.value));
+    } catch (e: any) {
+        if (e)
+            console.error(e);
+    }
+}
 </script>
 
 <template>
@@ -303,10 +311,7 @@ watch(settings, function (newValue) {
             <h1>Developer Assistant</h1>
         </div>
         <div class="api-config">
-            <select v-model="selectedModel">
-                <option v-for="model in models" :value="model">{{ model }}</option>
-            </select>
-            <input type="text" placeholder="API Endpoint" v-model="settings.apiUrl">
+            <button class="btn" @click="showSettings">Settings</button>
         </div>
     </header>
 
@@ -331,25 +336,12 @@ watch(settings, function (newValue) {
         </div>
 
         <div class="chat-container">
-            <div class="messages" ref="messagesContainer">
-                <div class="message" v-for="msg of messages" :key="msg.id" :class="msg.role">
-                    <div class="avatar">
-                        <i :class="msg.avatarIcon"></i>
-                    </div>
-                    <div class="message-content">
-                        <div class="markdown-content">
-                            <div class="typing-indicator" v-if="msg.isThinking">
-                                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                            </div>
-                            <div v-else v-html="msg.contentHtml"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+            <Messages :messages="messages" ref="messagesContainer"></Messages>
             <Prompt @send-message="sendMessage" :send-disabled="sendDisabled"></Prompt>
         </div>
     </div>
+
+    <SettingsDialog v-model="settings" ref="settingsDialog"></SettingsDialog>
 </template>
 
 <style scoped>
