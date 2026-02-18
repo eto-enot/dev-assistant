@@ -13,7 +13,6 @@ function sendMessage() {
 
     // Clear input
     message.value = '';
-    messageHeight.value = 'auto';
 }
 
 // Send message on enter
@@ -24,9 +23,11 @@ function onMessageKeydown(e: KeyboardEvent) {
     }
 }
 
-watch(message, function () {
+watch(message, function (newValue) {
     // prompt field auto sizing
-    messageHeight.value = messageInputRef.value.scrollHeight + 'px';
+    messageHeight.value = newValue
+        ? messageInputRef.value?.scrollHeight + 'px'
+        : 'auto';
 });
 </script>
 
@@ -41,3 +42,9 @@ watch(message, function () {
         </div>
     </div>
 </template>
+
+<style scoped>
+textarea {
+    overflow-y: clip;
+}
+</style>

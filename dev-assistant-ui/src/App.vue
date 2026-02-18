@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef, watch } from 'vue';
 import { generateId, processStreamResponse, Message, DEFAULT_SETTINGS } from './utils';
-import type { Conversations, Settings } from './types';
+import type { Conversations, Role, Settings } from './types';
 import hljs from 'highlight.js';
 import Prompt from './Prompt.vue';
 
+interface HistoryListItem {
+    id: string;
+    active: boolean;
+    title: string;
+}
+
 const models = ['Coder LLM'];
 
-const settings = ref(<Settings> JSON.parse(sessionStorage.getItem('settings')) || DEFAULT_SETTINGS);
+const settings = ref(<Settings> JSON.parse(sessionStorage.getItem('settings') ?? 'null') || DEFAULT_SETTINGS);
 const selectedModel = ref(models[0]);
-const historyList = ref([]);
-const messages = ref([]);
+const historyList = ref<HistoryListItem[]>([]);
+const messages = ref<Message[]>([]);
 const sendDisabled = ref(false);
 
 const messagesContainerRef = useTemplateRef('messagesContainer')
@@ -18,7 +24,7 @@ const messagesContainerRef = useTemplateRef('messagesContainer')
 let isStreaming = false;
 
 let currentConversationId = generateId();
-let conversations: Conversations = JSON.parse(sessionStorage.getItem('conversations')) || {};
+let conversations: Conversations = JSON.parse(sessionStorage.getItem('conversations') ?? 'null') || {};
 
 onMounted(function () {
     // Initialize the app
@@ -58,7 +64,7 @@ function loadConversations() {
 }
 
 // Set active conversation
-function setActiveConversation(id) {
+function setActiveConversation(id: string) {
     // Update active state in history list
     historyList.value.forEach(item => {
         item.active = item.id === id;
@@ -69,7 +75,7 @@ function setActiveConversation(id) {
 }
 
 // Display a conversation
-function displayConversation(id) {
+function displayConversation(id: string) {
     const conversation = conversations[id];
 
     if (!conversation) {
@@ -90,7 +96,8 @@ function displayConversation(id) {
     }, 100);
 
     // Scroll to bottom
-    messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
+    if (messagesContainerRef.value)
+        messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
 }
 
 // Start a new chat
@@ -108,34 +115,36 @@ function startNewChat() {
 
 // Get conversation history for API request
 function getConversationHistory() {
-    if (!conversations[currentConversationId]) {
+    const conversation = conversations[currentConversationId];
+    if (!conversation) {
         return [];
     }
 
     // Return only the messages (without metadata)
-    return conversations[currentConversationId].messages.map(msg => ({
+    return conversation.messages.map(msg => ({
         role: msg.role,
         content: msg.content
     }));
 }
 
 // Save message to conversation history
-function saveMessageToConversation(role, content) {
-    if (!conversations[currentConversationId]) {
-        conversations[currentConversationId] = {
+function saveMessageToConversation(role: Role, content: string) {
+    let conversation = conversations[currentConversationId];
+    if (!conversation) {
+        conversation = conversations[currentConversationId] = {
             id: currentConversationId,
             timestamp: Date.now(),
             messages: []
         };
     }
 
-    conversations[currentConversationId].messages.push({
+    conversation.messages.push({
         role,
         content,
         timestamp: Date.now()
     });
 
-    conversations[currentConversationId].timestamp = Date.now();
+    conversation.timestamp = Date.now();
 
     // Update localStorage
     sessionStorage.setItem('conversations', JSON.stringify(conversations));
@@ -145,7 +154,7 @@ function saveMessageToConversation(role, content) {
 }
 
 // Update message content with markdown support
-function updateMessageContent(messageId, content) {
+function updateMessageContent(messageId: string, content: string) {
     const message = messages.value.find(x => x.id === messageId);
     if (message) {
         // Replace typing indicator with markdown content
@@ -158,23 +167,24 @@ function updateMessageContent(messageId, content) {
         }, 0);
 
         // Scroll to bottom
-        messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
+        if (messagesContainerRef.value)
+            messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
     }
 }
 
 // Initialize copy buttons for code blocks
 function initializeCopyButtons() {
     document.querySelectorAll('.copy-code-btn').forEach(button => {
-        button.addEventListener('click', function () {
-            copyCodeToClipboard(this);
+        button.addEventListener('click', function (e) {
+            copyCodeToClipboard(e.target as HTMLButtonElement);
         });
     });
 }
 
 // Copy code to clipboard
-function copyCodeToClipboard(button) {
-    const codeBlock = button.parentElement.querySelector('code');
-    const textToCopy = codeBlock.textContent;
+function copyCodeToClipboard(button: HTMLButtonElement) {
+    const codeBlock = button.parentElement!.querySelector('code');
+    const textToCopy = codeBlock!.textContent;
 
     navigator.clipboard.writeText(textToCopy).then(() => {
         const originalText = button.textContent;
@@ -195,13 +205,13 @@ function copyCodeToClipboard(button) {
 }
 
 // Add message to UI
-function addMessageToUI(role, content, scroll = true) {
+function addMessageToUI(role: Role, content: string, scroll = true) {
     const messageId = generateId();
 
     const message = new Message(messageId, role, content);
     messages.value.push(message);
 
-    if (scroll) {
+    if (scroll && messagesContainerRef.value) {
         messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
     }
 
@@ -251,10 +261,10 @@ async function sendMessage(message: string) {
         await processStreamResponse(response, messageId, updateMessageContent);
 
         // Save assistant message to conversation history
-        const assistantMessage = messages.value.find(x => x.id === messageId)?.content;
+        const assistantMessage = messages.value.find(x => x.id === messageId)?.content ?? '';
         saveMessageToConversation('assistant', assistantMessage);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error:', error);
         updateMessageContent(messageId, `Error: ${error.message}. Please check your endpoint URL and network connection.`);
     } finally {
@@ -269,7 +279,7 @@ async function sendMessage(message: string) {
     }
 }
 
-function removeConversation(item) {
+function removeConversation(item: HistoryListItem) {
     const idx = historyList.value.findIndex(x => x.id === item.id);
     if (idx >= 0) {
         historyList.value.splice(idx, 1);

@@ -12,7 +12,10 @@ type MessageUpdatedCallback = (messageId: string, accumulatedText: string) => vo
 
 // process streaming response frmo model
 export async function processStreamResponse(response: Response, messageId: string, messageUpdatedCallback: MessageUpdatedCallback) {
-    const reader = response.body.getReader();
+    const reader = response.body?.getReader();
+    if (!reader)
+        throw new Error('Unable to read the response');
+
     const decoder = new TextDecoder();
     let accumulatedText = '';
 
@@ -103,7 +106,7 @@ export function renderMarkdown(text: string) {
     html = html.replace(/^---$/gim, '<hr>');
 
     // Tables (simple support)
-    html = html.replace(/\|(.+)\|/g, function (match, row) {
+    html = html.replace(/\|(.+)\|/g, function (match, row: string) {
         const cells = row.split('|').map(cell => cell.trim());
         if (cells.some(cell => cell.includes('---'))) {
             return ''; // Skip separator rows for now
