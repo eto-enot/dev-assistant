@@ -503,3 +503,7 @@ textarea:focus {
     font-size: 0.85em;
   }
 }
+
+code.hljs {
+    overflow-x: visible !important;
+}
