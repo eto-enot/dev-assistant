@@ -1,6 +1,6 @@
 ## Бенчмарк производительности LLM
 
-В данном каталоге определяется контейнер для запуска инструментов vLLM для замера производительности генерации LLM.
+В данном каталоге определяется контейнер для запуска инструментов vLLM для замера производительности генерации.
 
 ### Сборка
 
@@ -28,20 +28,20 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct llm-benchmark
 docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DATASET_NAME=spec_bench -e REQUEST_RATE=5 --network diplom_back_net llm-benchmark
 ```
 
-Результаты замера производительности с различным числом черновых токенов на датасете Spec Bench (всего использовалось 50 промптов):
+Результаты замера производительности подхода со спекулятивным декодингом (SD) с различным числом черновых токенов на датасете Spec Bench (всего использовалось 50 промптов):
 
 <table>
   <thead>
     <tr>
       <th >&nbsp;</th>
-      <th >Duration, s</th>
+      <th >Duration, s $\downarrow$</th>
       <th >Total output tokens</th>
-      <th >Token throughput</th>
-      <th >Acceptance rate, %</th>
-      <th >Acceptance length, tok.</th>
-      <th >TTFT, s</th>
-      <th >TPOT, s</th>
-      <th >ITL, s</th>
+      <th >Token throughput $\uparrow$</th>
+      <th >Acceptance rate, % $\uparrow$</th>
+      <th >Acceptance length, tok. $\uparrow$</th>
+      <th >TTFT, ms $\downarrow$</th>
+      <th >TPOT, ms $\downarrow$</th>
+      <th >ITL, ms $\downarrow$</th>
     </tr>
   </thead>
   <tbody>
@@ -52,30 +52,30 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DAT
       <td >110.93</td>
       <td >-</td>
       <td >-</td>
-      <td >82.89 ± 70.80</td>
+      <td ><b>82.89 ± 70.80</b></td>
       <td >24.98 ± 0.18</td>
-      <td >25.02 ± 0.31</td>
+      <td ><b>25.02 ± 0.31</b></td>
     </tr>
     <tr>
       <th >Draft 3</th>
-      <td >135.77</td>
+      <td ><ins>135.77</ins></td>
       <td >8056</td>
-      <td >164.28</td>
-      <td >56.74</td>
+      <td ><ins>164.28</ins></td>
+      <td ><b>56.74</b></td>
       <td >2.70</td>
       <td >105.89 ± 109.73</td>
-      <td >16.42 ± 3.58</td>
-      <td >43.08 ± 7.27</td>
+      <td ><b>16.42 ± 3.58</b></td>
+      <td ><ins>43.08 ± 7.27</ins></td>
     </tr>
     <tr>
       <th >Draft 4</th>
-      <td >132.47</td>
+      <td ><b>132.47</b></td>
       <td >7658</td>
-      <td >165.37</td>
-      <td >50.08</td>
+      <td ><b>165.37</b></td>
+      <td ><b>50.08</b></td>
       <td >3.00</td>
       <td >114.35 ± 106.67</td>
-      <td >17.06 ± 4.37</td>
+      <td ><ins>17.06 ± 4.37</ins></td>
       <td >48.98 ± 8.05</td>
     </tr>
     <tr>
@@ -106,7 +106,7 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DAT
       <td >8048</td>
       <td >146.26</td>
       <td >37.74</td>
-      <td >3.64</td>
+      <td ><ins>3.64</ins></td>
       <td >134.62 ± 112.53</td>
       <td >19.48 ± 7.32</td>
       <td >64.72 ± 8.48</td>
@@ -128,7 +128,7 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DAT
       <td >7953</td>
       <td >120.81</td>
       <td >27.21</td>
-      <td >3.72</td>
+      <td ><b>3.72</b></td>
       <td >157.51 ± 126.19</td>
       <td >23.59 ± 9.22</td>
       <td >81.15 ± 8.77</td>
