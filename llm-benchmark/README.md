@@ -19,7 +19,7 @@ docker build -t llm-benchmark .
 - `PORT` - порт.
 - `NUM_PROMPTS` - общее число запросов к LLM.
 - `REQUEST_RATE` - число запросов к LLM в секунду.
-- `DATASET_NAME` - название датасета (возможные значения: `sharegpt`, `spec_bench`).
+- `DATASET_NAME` - название набора данных (возможные значения: `sharegpt`, `spec_bench`).
 
 Примеры запуска:
 
@@ -28,12 +28,14 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct llm-benchmark
 docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DATASET_NAME=spec_bench -e REQUEST_RATE=5 --network diplom_back_net llm-benchmark
 ```
 
-Результаты замера производительности подхода со спекулятивным декодингом (SD) с различным числом черновых токенов на датасете Spec Bench (всего использовалось 50 промптов):
+### Спекулятивное декодирование
+
+В таблице ниже представлены результаты замера производительности генерации со спекулятивным декодированием (SD) с различным числом черновых токенов. Использовалось 50 примеров из набора данных Spec Bench:
 
 <table>
   <thead>
     <tr>
-      <th >&nbsp;</th>
+      <th >Draft tokens</th>
       <th >Duration, s $\downarrow$</th>
       <th >Total output tokens</th>
       <th >Token throughput $\uparrow$</th>
@@ -46,7 +48,7 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DAT
   </thead>
   <tbody>
     <tr>
-      <th >No SD</th>
+      <th >SD disabled</th>
       <td >198.01</td>
       <td >7717</td>
       <td >110.93</td>
@@ -57,29 +59,29 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DAT
       <td ><b>25.02 ± 0.31</b></td>
     </tr>
     <tr>
-      <th >Draft 3</th>
+      <th >3</th>
       <td ><ins>135.77</ins></td>
       <td >8056</td>
       <td ><ins>164.28</ins></td>
       <td ><b>56.74</b></td>
       <td >2.70</td>
-      <td >105.89 ± 109.73</td>
+      <td ><ins>105.89 ± 109.73</ins></td>
       <td ><b>16.42 ± 3.58</b></td>
       <td ><ins>43.08 ± 7.27</ins></td>
     </tr>
     <tr>
-      <th >Draft 4</th>
+      <th >4</th>
       <td ><b>132.47</b></td>
       <td >7658</td>
       <td ><b>165.37</b></td>
-      <td ><b>50.08</b></td>
+      <td ><ins>50.08</ins></td>
       <td >3.00</td>
       <td >114.35 ± 106.67</td>
       <td ><ins>17.06 ± 4.37</ins></td>
       <td >48.98 ± 8.05</td>
     </tr>
     <tr>
-      <th >Draft 5</th>
+      <th >5</th>
       <td >136.06</td>
       <td >7594</td>
       <td >160.54</td>
@@ -90,40 +92,40 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DAT
       <td >53.93 ± 8.24</td>
     </tr>
     <tr>
-      <th >Draft 6</th>
+      <th >6</th>
       <td >136.55</td>
       <td >7658</td>
       <td >160.42</td>
-      <td >50.08</td>
+      <td ><ins>50.08</ins></td>
       <td >3.00</td>
       <td >117.92 ± 115.08</td>
       <td >17.41 ± 4.46</td>
       <td >50.04 ± 7.98</td>
     </tr>
     <tr>
-      <th >Draft 7</th>
+      <th >7</th>
       <td >152.44</td>
       <td >8048</td>
       <td >146.26</td>
       <td >37.74</td>
-      <td ><ins>3.64</ins></td>
+      <td >3.64</td>
       <td >134.62 ± 112.53</td>
       <td >19.48 ± 7.32</td>
       <td >64.72 ± 8.48</td>
     </tr>
     <tr>
-      <th >Draft 8</th>
+      <th >8</th>
       <td >164.28</td>
       <td >7884</td>
       <td >134.72</td>
       <td >32.21</td>
-      <td >3.58</td>
+      <td ><ins>3.58</ins></td>
       <td >141.92 ± 115.40</td>
       <td >21.20 ± 8.20</td>
       <td >70.14 ± 8.63</td>
     </tr>
     <tr>
-      <th >Draft 10</th>
+      <th >10</th>
       <td >183.76</td>
       <td >7953</td>
       <td >120.81</td>
@@ -136,4 +138,4 @@ docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DAT
   </tbody>
 </table>
 
-
+Применение спекулятивного декодирования существенно снижает время выполнения запросов. Имеет смысл использовать 4-5 черновых токенов для данного подхода.
