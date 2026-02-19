@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, ref, useTemplateRef, watch } from 'vue';
-import { generateId, processStreamResponse, Message, DEFAULT_SETTINGS } from './utils';
+import { onMounted, ref, useTemplateRef } from 'vue';
+import { generateId, processStreamResponse, Message, getDefaultSettings } from './utils';
 import type { Conversations, Role, Settings } from './types';
 import hljs from 'highlight.js';
 import Prompt from './Prompt.vue';
@@ -13,9 +13,7 @@ interface HistoryListItem {
     title: string;
 }
 
-const models = ['Coder LLM'];
-
-const settings = ref(<Settings> JSON.parse(sessionStorage.getItem('settings') ?? 'null') || DEFAULT_SETTINGS);
+const settings = ref(<Settings>JSON.parse(sessionStorage.getItem('settings') ?? 'null') || getDefaultSettings());
 const historyList = ref<HistoryListItem[]>([]);
 const messages = ref<Message[]>([]);
 const sendDisabled = ref(false);
@@ -26,7 +24,7 @@ const settingsDialogRef = useTemplateRef('settingsDialog');
 let isStreaming = false;
 
 let currentConversationId = generateId();
-let conversations: Conversations = JSON.parse(sessionStorage.getItem('conversations') ?? 'null') || {};
+const conversations: Conversations = JSON.parse(sessionStorage.getItem('conversations') ?? 'null') || {};
 
 onMounted(function () {
     // Initialize the app
@@ -298,9 +296,9 @@ async function showSettings() {
     try {
         await settingsDialogRef.value?.showModal();
         sessionStorage.setItem('settings', JSON.stringify(settings.value));
-    } catch (e: any) {
-        if (e)
-            console.error(e);
+    } catch (err: any) {
+        if (err)
+            console.error(err);
     }
 }
 </script>
@@ -326,10 +324,11 @@ async function showSettings() {
                 <li class="history-item">No conversations yet</li>
             </ul>
             <ul class="history-list" v-else>
-                <li class="history-item" v-for="item of historyList" :key="item.id" @click="() => setActiveConversation(item.id)" :class="{ active: item.active }">
+                <li class="history-item" v-for="item of historyList" :key="item.id"
+                    @click="() => setActiveConversation(item.id)" :class="{ active: item.active }">
                     <span>{{ item.title }}</span>
                     <span style="float: right" @click="() => removeConversation(item)">
-                        <i class="fas fa-xmark"/>
+                        <i class="fas fa-xmark" />
                     </span>
                 </li>
             </ul>
@@ -344,5 +343,4 @@ async function showSettings() {
     <SettingsDialog v-model="settings" ref="settingsDialog"></SettingsDialog>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>

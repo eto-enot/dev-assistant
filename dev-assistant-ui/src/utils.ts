@@ -1,8 +1,18 @@
 import type { Role, Settings } from './types';
 
-export const DEFAULT_SETTINGS: Settings = {
-    model: 'Coder LLM',
-    apiUrl: 'http://localhost:5002/v1/chat/completions',
+function getCurrentDirectory() {
+    const platform = window.navigator.platform || window.navigator.userAgentData?.platform;
+    const isWindows = (platform?.indexOf('Win') ?? -1) >= 0;
+    const idx = window.location.pathname.lastIndexOf('/');
+    return window.location.pathname.substring(isWindows ? 1 : 0, idx);
+}
+
+export function getDefaultSettings() {
+    return <Settings> {
+        model: 'Coder LLM',
+        apiUrl: 'http://localhost:5002/v1/chat/completions',
+        currentDirectory: getCurrentDirectory(),
+    };
 }
 
 export function generateId() {

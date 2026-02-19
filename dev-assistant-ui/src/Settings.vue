@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, useTemplateRef } from 'vue';
+import { useTemplateRef } from 'vue';
 import { type Settings } from './types';
 
-let resolve: (value: Settings) => void, reject: (reason?: any) => void;
+let resolve: (value: Settings) => void, reject: (reason?: unknown) => void;
 let promise: Promise<Settings>;
 
 const models = ['Coder LLM'];
-const settings = defineModel<Settings>({default: {}});
+const settings = defineModel<Settings>({ default: {} });
 const dialogRef = useTemplateRef('dialog');
 
 function showModal() {
@@ -41,7 +41,7 @@ function onOk() {
                 <div class="caption">Model:</div>
                 <div class="value">
                     <select v-model="settings.model">
-                        <option v-for="model in models" :value="model">{{ model }}</option>
+                        <option v-for="model in models" :value="model" :key="model">{{ model }}</option>
                     </select>
                 </div>
             </div>
@@ -50,6 +50,13 @@ function onOk() {
                 <div class="caption">API Endpoint:</div>
                 <div class="value">
                     <input type="text" placeholder="API Endpoint" v-model="settings.apiUrl">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="caption">Working Directory:</div>
+                <div class="value">
+                    <input type="text" placeholder="Working Directory" v-model="settings.currentDirectory">
                 </div>
             </div>
         </div>
@@ -108,7 +115,8 @@ dialog {
     flex-grow: 1;
 }
 
-.value > input, .value > select {
+.value>input,
+.value>select {
     width: 100%;
 }
 </style>

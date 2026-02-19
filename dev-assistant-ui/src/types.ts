@@ -19,4 +19,5 @@ export interface Conversations {
 export interface Settings {
     model: string;
     apiUrl: string;
+    currentDirectory: string;
 }
