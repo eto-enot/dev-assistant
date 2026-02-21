@@ -12,6 +12,7 @@ export function getDefaultSettings() {
         model: 'Coder LLM',
         apiUrl: 'http://localhost:8000',
         currentDirectory: getCurrentDirectory(),
+        coreInfo: '',
     };
 }
 

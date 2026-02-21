@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
-class SetWorkDirectoryRequest(BaseModel):
+class SetProjectInfoRequest(BaseModel):
     session_id: str
-    dir: str
+    work_directory: str
+    core_info: str

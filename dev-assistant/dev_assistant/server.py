@@ -16,7 +16,7 @@ from fastapi import Request, Response
 from agent import DevAssistantAgent, DevAssistantConfig, DevAssistantRag
 from starlette.middleware.cors import CORSMiddleware
 from litserve.utils import ResponseBufferItem
-from model import SetWorkDirectoryRequest
+from model import SetProjectInfoRequest
 
 
 class LlamaIndexAPI(ls.LitAPI):
@@ -48,7 +48,7 @@ class OpenAISpecModels(ls.OpenAISpec):
     def pre_setup(self, lit_api: ls.LitAPI):
         self.add_endpoint('/v1/models', self.models, ["GET"])
         self.add_endpoint('/v1/models', self.options_models, ["OPTIONS"])
-        self.add_endpoint('/set-work-dir', self.set_work_dir, ["POST"])
+        self.add_endpoint('/set-project-info', self.set_project_info, ["POST"])
         super().pre_setup(lit_api)
 
     async def models(self, request: Request):
@@ -59,12 +59,12 @@ class OpenAISpecModels(ls.OpenAISpec):
         return Response(status_code=200)
     
     def populate_context(self, context, request):
-        if isinstance(request, SetWorkDirectoryRequest):
+        if isinstance(request, SetProjectInfoRequest):
             return
         super().populate_context(context, request)
         
     
-    async def set_work_dir(self, request: SetWorkDirectoryRequest):
+    async def set_project_info(self, request: SetProjectInfoRequest):
         self._server._callback_runner.trigger_event(
             EventTypes.ON_REQUEST.value,
             active_requests=self._server.active_requests,

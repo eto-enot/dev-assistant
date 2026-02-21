@@ -54,9 +54,16 @@ function onOk() {
             </div>
 
             <div class="row">
-                <div class="caption">Working Directory:</div>
+                <div class="caption">Project Directory:</div>
                 <div class="value">
                     <input type="text" placeholder="Working Directory" v-model="settings.currentDirectory">
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px">
+                <div>Project Basic Information:</div>
+                <div>
+                    <textarea rows="5" placeholder="Tell what you're working on" v-model="settings.coreInfo"></textarea>
                 </div>
             </div>
         </div>

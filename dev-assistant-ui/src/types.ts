@@ -20,4 +20,11 @@ export interface Settings {
     model: string;
     apiUrl: string;
     currentDirectory: string;
+    coreInfo: string;
+}
+
+export interface SetProjectInfoRequest {
+    session_id: string;
+    work_directory: string;
+    core_info: string;
 }

@@ -8,13 +8,21 @@ from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings, 
 from llama_index.embeddings.openai_like import OpenAILikeEmbedding
 from litserve.specs.openai import ChatCompletionRequest
 from llama_index.llms.openai_like import OpenAILike
-from llama_index.core.base.llms.types import ChatMessage, MessageRole
-from llama_index.core.agent.workflow import AgentStream, ReActAgent, ToolCallResult
+from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
+from llama_index.core.agent.workflow import AgentStream, FunctionAgent, ReActAgent, ToolCallResult
 from llama_index.core.tools import FunctionTool, QueryEngineTool
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from model import SetWorkDirectoryRequest
+from model import SetProjectInfoRequest
+from llama_index.core.storage.chat_store.base_db import MessageStatus
+from llama_index.core.memory import (
+    Memory,
+    StaticMemoryBlock,
+    FactExtractionMemoryBlock,
+    VectorMemoryBlock,
+    InsertMethod,
+)
 
 
 class DevAssistantConfig:
@@ -86,13 +94,52 @@ class DevAssistantAgent:
         )
         # self.engine = index.as_chat_engine(streaming=True, similarity_top_k=2)
         # self.agent = FunctionAgent(
-        #     tools=[mult, rag],
+        #     tools=[mult, rag_tool],
         #     system_prompt="You are a helpful assistant that can perform calculations and search through documents to answer questions.",
         #     llm=Settings.llm
         # )
         self.agent = ReActAgent(tools=[mult, rag_tool], verbose=True)
-        self.work_dirs = dict()
+        self.work_dirs: dict[str, str] = dict()
+        self.memory_slots: dict[str, Memory] = dict()
 
+    def _create_static_memory_block(self, core_info: str):
+        return StaticMemoryBlock(
+            name="core_info",
+            static_content=[TextBlock(text=core_info)],
+            priority=0,
+        )
+
+    def _create_memory(self, session_id: str, core_info: str):
+        blocks = [
+            self._create_static_memory_block(core_info),
+            FactExtractionMemoryBlock(
+                name="extracted_info",
+                llm=Settings.llm,
+                max_facts=50,
+                priority=1,
+            ),
+            # VectorMemoryBlock(
+            #     name="vector_memory",
+            #     # required: pass in a vector store like qdrant, chroma, weaviate, milvus, etc.
+            #     vector_store=vector_store,
+            #     priority=2,
+            #     embed_model=Settings.embed_model,
+            #     # The top-k message batches to retrieve
+            #     # similarity_top_k=2,
+            #     # optional: How many previous messages to include in the retrieval query
+            #     # retrieval_context_window=5
+            #     # optional: pass optional node-postprocessors for things like similarity threshold, etc.
+            #     # node_postprocessors=[...],
+            # ),
+        ]
+        memory = Memory.from_defaults(
+            session_id=session_id,
+            token_limit=40000,
+            memory_blocks=blocks,
+            insert_method=InsertMethod.USER,
+        )
+        return memory
+    
     def multiply(self, a: Annotated[float, 'First multiplier'], b: Annotated[float, 'Second multiplier']) -> float:
         """ Useful for multiplying two numbers."""
         print(f'multiply called: {a}, {b}')
@@ -104,15 +151,19 @@ class DevAssistantAgent:
         response = await self.rag.engine.aquery(query)
         return str(response)
     
-    def stream(self, request: ChatCompletionRequest | SetWorkDirectoryRequest):
+    def stream(self, request: ChatCompletionRequest | SetProjectInfoRequest):
         if isinstance(request, ChatCompletionRequest):
             return self._stream_chat_message(request)
-        elif isinstance(request, SetWorkDirectoryRequest):
-            return self._set_work_directory(request)
+        elif isinstance(request, SetProjectInfoRequest):
+            return self._set_project_info(request)
         
-    async def _set_work_directory(self, request: SetWorkDirectoryRequest):
-        print(f'workdir set: {request.dir}')
-        self.work_dirs[request.session_id] = request.dir
+    async def _set_project_info(self, request: SetProjectInfoRequest):
+        self.work_dirs[request.session_id] = request.work_directory
+        if not request.session_id in self.memory_slots:
+            self.memory_slots[request.session_id] = self._create_memory(request.session_id, request.core_info)
+        else:
+            memory = self.memory_slots[request.session_id]
+            memory.memory_blocks[0] = self._create_static_memory_block(request.core_info)
         if False: yield
 
     async def _stream_chat_message(self, request: ChatCompletionRequest):
@@ -121,7 +172,13 @@ class DevAssistantAgent:
             for message in request.messages
         ]
 
-        handler = self.agent.run(messages[-1].content, chat_history=messages[:-1])
+        memory = None
+        if request.user and request.user in self.memory_slots:
+            memory = self.memory_slots[request.user]
+            print(memory.get_all(MessageStatus.ACTIVE))
+
+
+        handler = self.agent.run(messages[-1].content, memory=memory) #chat_history=messages[:-1]
         start_output = False
         last_event = None
         async for event in handler.stream_events():

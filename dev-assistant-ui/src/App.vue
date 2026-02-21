@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef } from 'vue';
 import { generateId, processStreamResponse, Message, getDefaultSettings } from './utils';
-import type { Conversations, Role, Settings } from './types';
+import type { Conversations, Role, SetProjectInfoRequest, Settings } from './types';
 import hljs from 'highlight.js';
 import Prompt from './Prompt.vue';
 import Messages from './Messages.vue';
@@ -63,16 +63,17 @@ function loadConversations() {
     });
 }
 
-async function setCurrentDirectory(sessionId: string) {
-    const response = await fetch(settings.value.apiUrl + '/set-work-dir', {
+async function setProjectInfo(sessionId: string) {
+    const response = await fetch(settings.value.apiUrl + '/set-project-info', {
         method: "POST",
         headers: {
             "Accept": "application/json",
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({
+        body: JSON.stringify(<SetProjectInfoRequest>{
             session_id: sessionId,
-            dir: settings.value.currentDirectory
+            work_directory: settings.value.currentDirectory,
+            core_info: settings.value.coreInfo,
         }),
     });
 
@@ -88,7 +89,7 @@ async function setActiveConversation(id: string) {
     });
 
     currentConversationId = id;
-    await setCurrentDirectory(id);
+    await setProjectInfo(id);
     displayConversation(id);
 }
 
