@@ -30,7 +30,7 @@ services:
       --dtype bfloat16
       --max-num-seqs 16
       --max-num-batched-tokens 2048
-      --speculative-config '{"method": "draft_model", "model": "${VLLM_LLM_DRAFT_MODEL}", "num_speculative_tokens": 7}'
+      --speculative-config '{"method": "draft_model", "model": "${VLLM_LLM_DRAFT_MODEL}", "num_speculative_tokens": 4}'
     networks:
       - back_net
     healthcheck:

@@ -1,15 +1,22 @@
+import asyncio
+from collections import deque
+import time
+import uuid
+
 import litserve as ls
+from litserve.callbacks.base import EventTypes
+from pydantic import BaseModel
 import requests
 import requests
 import dotenv
-import os
 
 from banks import ChatMessage
 from fastapi.responses import JSONResponse
 from fastapi import Request, Response
 from agent import DevAssistantAgent, DevAssistantConfig, DevAssistantRag
 from starlette.middleware.cors import CORSMiddleware
-import asyncio
+from litserve.utils import ResponseBufferItem
+from model import SetWorkDirectoryRequest
 
 
 class LlamaIndexAPI(ls.LitAPI):
@@ -19,11 +26,11 @@ class LlamaIndexAPI(ls.LitAPI):
     
     def setup(self, device):
         rag = DevAssistantRag(self.config)
-        rag._init_engine()
-        self.llm = DevAssistantAgent(rag)
+        self.agent = DevAssistantAgent(rag)
+        pass
 
     async def predict(self, x, **kwargs):
-        async for token in self.llm.stream(x):
+        async for token in self.agent.stream(x):
             yield token
 
     async def encode_response(self, output, **kwargs):
@@ -35,10 +42,13 @@ class OpenAISpecModels(ls.OpenAISpec):
     def __init__(self, api_url):
         super().__init__()
         self.api_url = api_url
+        self.work_dirs = dict()
+        self.work_dir_updated = None
 
     def pre_setup(self, lit_api: ls.LitAPI):
         self.add_endpoint('/v1/models', self.models, ["GET"])
         self.add_endpoint('/v1/models', self.options_models, ["OPTIONS"])
+        self.add_endpoint('/set-work-dir', self.set_work_dir, ["POST"])
         super().pre_setup(lit_api)
 
     async def models(self, request: Request):
@@ -47,6 +57,28 @@ class OpenAISpecModels(ls.OpenAISpec):
     
     async def options_models(self, request: Request):
         return Response(status_code=200)
+    
+    def populate_context(self, context, request):
+        if isinstance(request, SetWorkDirectoryRequest):
+            return
+        super().populate_context(context, request)
+        
+    
+    async def set_work_dir(self, request: SetWorkDirectoryRequest):
+        self._server._callback_runner.trigger_event(
+            EventTypes.ON_REQUEST.value,
+            active_requests=self._server.active_requests,
+            litserver=self._server,
+        )
+
+        self._put_request_to_queue(request)        
+        return Response(status_code=200)
+    
+    def _put_request_to_queue(self, request: BaseModel):
+        request_el = request.model_copy()
+        uid = uuid.uuid4()
+        self.response_buffer[uid] = ResponseBufferItem(asyncio.Event(), deque())
+        self.request_queue.put((self.response_queue_id, uid, time.monotonic(), request_el))
 
 
 if __name__ == "__main__":

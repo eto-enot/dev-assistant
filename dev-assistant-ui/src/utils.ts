@@ -10,7 +10,7 @@ function getCurrentDirectory() {
 export function getDefaultSettings() {
     return <Settings> {
         model: 'Coder LLM',
-        apiUrl: 'http://localhost:5002/v1/chat/completions',
+        apiUrl: 'http://localhost:8000',
         currentDirectory: getCurrentDirectory(),
     };
 }

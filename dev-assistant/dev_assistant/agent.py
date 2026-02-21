@@ -4,20 +4,17 @@ import os
 from pathlib import Path
 from typing import Annotated
 
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings, StorageContext, load_index_from_storage
+from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings, StorageContext
 from llama_index.embeddings.openai_like import OpenAILikeEmbedding
 from litserve.specs.openai import ChatCompletionRequest
 from llama_index.llms.openai_like import OpenAILike
 from llama_index.core.base.llms.types import ChatMessage, MessageRole
-from llama_index.core.agent.workflow import FunctionAgent, AgentStream, ReActAgent, ToolCallResult
+from llama_index.core.agent.workflow import AgentStream, ReActAgent, ToolCallResult
 from llama_index.core.tools import FunctionTool, QueryEngineTool
-from llama_index.core.storage.docstore import SimpleDocumentStore
-from llama_index.core.storage.index_store import SimpleIndexStore
-from llama_index.core.vector_stores import SimpleVectorStore
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from traitlets import Instance
+from model import SetWorkDirectoryRequest
 
 
 class DevAssistantConfig:
@@ -58,7 +55,7 @@ class DevAssistantRag:
             http_client=client
         )
         self.config = config
-        self.engine = None
+        self.engine = self._init_engine()
 
     def _init_engine(self):
         aclient = AsyncQdrantClient(url=self.config.qdrant_url)
@@ -76,7 +73,7 @@ class DevAssistantRag:
             index = VectorStoreIndex.from_documents(
                 documents=docs, storage_context=context,
                 transformations=[splitter], show_progress=True)        
-        self.engine = index.as_query_engine(similarity_top_k=5)
+        return index.as_query_engine(similarity_top_k=5)
     
 
 class DevAssistantAgent:
@@ -94,7 +91,7 @@ class DevAssistantAgent:
         #     llm=Settings.llm
         # )
         self.agent = ReActAgent(tools=[mult, rag_tool], verbose=True)
-
+        self.work_dirs = dict()
 
     def multiply(self, a: Annotated[float, 'First multiplier'], b: Annotated[float, 'Second multiplier']) -> float:
         """ Useful for multiplying two numbers."""
@@ -106,11 +103,22 @@ class DevAssistantAgent:
         print(f'search called: {query}')
         response = await self.rag.engine.aquery(query)
         return str(response)
+    
+    def stream(self, request: ChatCompletionRequest | SetWorkDirectoryRequest):
+        if isinstance(request, ChatCompletionRequest):
+            return self._stream_chat_message(request)
+        elif isinstance(request, SetWorkDirectoryRequest):
+            return self._set_work_directory(request)
+        
+    async def _set_work_directory(self, request: SetWorkDirectoryRequest):
+        print(f'workdir set: {request.dir}')
+        self.work_dirs[request.session_id] = request.dir
+        if False: yield
 
-    async def stream(self, messages_dict: ChatCompletionRequest):
+    async def _stream_chat_message(self, request: ChatCompletionRequest):
         messages = [
             ChatMessage(content=message.content, role=MessageRole(message.role))
-            for message in messages_dict.messages
+            for message in request.messages
         ]
 
         handler = self.agent.run(messages[-1].content, chat_history=messages[:-1])

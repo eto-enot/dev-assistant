@@ -26,10 +26,10 @@ let isStreaming = false;
 let currentConversationId = generateId();
 const conversations: Conversations = JSON.parse(sessionStorage.getItem('conversations') ?? 'null') || {};
 
-onMounted(function () {
+onMounted(async function () {
     // Initialize the app
     loadConversations();
-    setActiveConversation(currentConversationId);
+    await setActiveConversation(currentConversationId);
 
     // Load default conversation if it exists
     if (conversations[currentConversationId]) {
@@ -63,14 +63,32 @@ function loadConversations() {
     });
 }
 
+async function setCurrentDirectory(sessionId: string) {
+    const response = await fetch(settings.value.apiUrl + '/set-work-dir', {
+        method: "POST",
+        headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            session_id: sessionId,
+            dir: settings.value.currentDirectory
+        }),
+    });
+
+    if (!response.ok)
+        throw new Error(`Error: ${response.status} ${response.statusText}`);
+}
+
 // Set active conversation
-function setActiveConversation(id: string) {
+async function setActiveConversation(id: string) {
     // Update active state in history list
     historyList.value.forEach(item => {
         item.active = item.id === id;
     });
 
     currentConversationId = id;
+    await setCurrentDirectory(id);
     displayConversation(id);
 }
 
@@ -101,7 +119,7 @@ function displayConversation(id: string) {
 }
 
 // Start a new chat
-function startNewChat() {
+async function startNewChat() {
     currentConversationId = generateId();
     conversations[currentConversationId] = {
         id: currentConversationId,
@@ -109,7 +127,7 @@ function startNewChat() {
         messages: []
     };
     historyList.value.unshift({ id: currentConversationId, title: 'New Conversation', active: true });
-    setActiveConversation(currentConversationId);
+    await setActiveConversation(currentConversationId);
     initializeCopyButtons();
 }
 
@@ -239,13 +257,14 @@ async function sendMessage(message: string) {
 
     // Prepare the request
     const requestBody = {
+        user: currentConversationId,
         model: model,
         messages: getConversationHistory(),
-        stream: true
+        stream: true,
     };
 
     try {
-        const response = await fetch(settings.value.apiUrl, {
+        const response = await fetch(settings.value.apiUrl + '/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
