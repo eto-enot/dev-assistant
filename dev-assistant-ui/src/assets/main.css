@@ -122,6 +122,7 @@ select:focus {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    gap: 4px;
 }
 
 .history-item:hover {

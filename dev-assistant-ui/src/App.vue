@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef } from 'vue';
-import { generateId, processStreamResponse, Message, getDefaultSettings } from './utils';
+import { generateId, processStreamResponse, getDefaultSettings } from './utils';
 import type { Conversations, Role, SetProjectInfoRequest, Settings } from './types';
-import hljs from 'highlight.js';
+// import hljs from 'highlight.js';
 import Prompt from './Prompt.vue';
 import Messages from './Messages.vue';
 import SettingsDialog from './Settings.vue';
+import { Message } from './chat';
+import { ErrorMessageUpdateEvent, type MessageUpdateEvent } from './events';
 
 interface HistoryListItem {
     id: string;
@@ -39,7 +41,7 @@ onMounted(async function () {
     }
 
     // Initialize highlight.js
-    hljs.highlightAll();
+    //hljs.highlightAll();
 });
 
 // Load conversations from localStorage
@@ -110,7 +112,7 @@ function displayConversation(id: string) {
 
     // Reinitialize syntax highlighting and copy buttons
     setTimeout(() => {
-        hljs.highlightAll();
+        //hljs.highlightAll();
         initializeCopyButtons();
     }, 100);
 
@@ -173,16 +175,15 @@ function saveMessageToConversation(role: Role, content: string) {
 }
 
 // Update message content with markdown support
-function updateMessageContent(messageId: string, content: string, isError?: boolean) {
+function updateMessageContent(messageId: string, event: MessageUpdateEvent) {
     const message = messages.value.find(x => x.id === messageId);
     if (message) {
         // Replace typing indicator with markdown content
-        message.content = content;
-        message.isError = !!isError;
+        message.update(event);
 
         // Apply syntax highlighting to code blocks
         setTimeout(() => {
-            hljs.highlightAll();
+            //hljs.highlightAll();
             initializeCopyButtons();
         }, 0);
 
@@ -287,14 +288,14 @@ async function sendMessage(message: string) {
 
     } catch (error: any) {
         console.error('Error:', error);
-        updateMessageContent(messageId, `Error: ${error.message}. Please check your endpoint URL and network connection.`, true);
+        updateMessageContent(messageId, new ErrorMessageUpdateEvent(`Error: ${error.message}. Please check your endpoint URL and network connection.`));
     } finally {
         isStreaming = false;
         sendDisabled.value = false;
 
         // Reinitialize syntax highlighting and copy buttons
         setTimeout(() => {
-            hljs.highlightAll();
+            //hljs.highlightAll();
             initializeCopyButtons();
         }, 100);
     }

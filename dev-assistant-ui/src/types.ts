@@ -44,6 +44,7 @@ export interface ChatCompletionChunk {
     object: 'chat.completion.chunk';
     created: number;
     model: string;
+    type: 'reasoning' | 'tool_call' | 'tool_call_result' | 'answer';
     choices: ChatCompletionStreamingChoice[];
 }
 
