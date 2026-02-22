@@ -1,25 +1,31 @@
 import asyncio
 from collections import deque
+from collections.abc import Iterator
+import json
 import time
 import uuid
 
-import litserve as ls
+from litserve import LitServer, LitAPI, OpenAISpec
+from litserve.specs.openai import ChatCompletionChunk, ChatCompletionStreamingChoice, ChatMessage, ChatMessageWithUsage, ChatCompletionRequest, ChoiceDelta, UsageInfo, _openai_format_error
+from litserve.utils import LitAPIStatus, ResponseBufferItem, azip
 from litserve.callbacks.base import EventTypes
 from pydantic import BaseModel
 import requests
 import requests
 import dotenv
 
-from banks import ChatMessage
 from fastapi.responses import JSONResponse
-from fastapi import Request, Response
+from fastapi import HTTPException, Request, Response
 from agent import DevAssistantAgent, DevAssistantConfig, DevAssistantRag
 from starlette.middleware.cors import CORSMiddleware
 from litserve.utils import ResponseBufferItem
 from model import SetProjectInfoRequest
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-class LlamaIndexAPI(ls.LitAPI):
+class LlamaIndexAPI(LitAPI):
     def __init__(self, config: DevAssistantConfig, **kwargs):
         super().__init__(**kwargs)
         self.config = config
@@ -33,19 +39,22 @@ class LlamaIndexAPI(ls.LitAPI):
         async for token in self.agent.stream(x):
             yield token
 
-    async def encode_response(self, output, **kwargs):
-        async for out in output:
-            yield ChatMessage(role='assistant', content=out)
+    # async def encode_response(self, output, **kwargs):
+    #     async for out in output:
+    #         yield ChatMessage(role=out['role'], content=out['content'])
 
 
-class OpenAISpecModels(ls.OpenAISpec):
+class ChatCompletionChunk2(ChatCompletionChunk):
+    type: str = ""
+
+class OpenAISpecModels(OpenAISpec):
     def __init__(self, api_url):
         super().__init__()
         self.api_url = api_url
         self.work_dirs = dict()
         self.work_dir_updated = None
 
-    def pre_setup(self, lit_api: ls.LitAPI):
+    def pre_setup(self, lit_api: LitAPI):
         self.add_endpoint('/v1/models', self.models, ["GET"])
         self.add_endpoint('/v1/models', self.options_models, ["OPTIONS"])
         self.add_endpoint('/set-project-info', self.set_project_info, ["POST"])
@@ -62,6 +71,59 @@ class OpenAISpecModels(ls.OpenAISpec):
         if isinstance(request, SetProjectInfoRequest):
             return
         super().populate_context(context, request)
+
+    async def streaming_completion(self, request: ChatCompletionRequest, pipe_responses: list):
+        try:
+            model = request.model
+            usage_info = None
+            type = ""
+            async for streaming_response in azip(*pipe_responses):
+                choices = []
+                usage_infos = []
+                # iterate over n choices
+                for i, (response, status) in enumerate(streaming_response):
+                    if status == LitAPIStatus.ERROR and isinstance(response, HTTPException):
+                        raise response
+                    elif status == LitAPIStatus.ERROR:
+                        logger.error("Error in streaming response: %s", response)
+                        raise HTTPException(status_code=500)
+                    encoded_response = json.loads(response)
+                    logger.debug(encoded_response)
+                    type = encoded_response["type"]
+                    chat_msg = ChoiceDelta(**encoded_response)
+                    usage_infos.append(UsageInfo(**encoded_response))
+                    choice = ChatCompletionStreamingChoice(
+                        index=i, delta=chat_msg, finish_reason=None
+                    )
+
+                    choices.append(choice)
+
+                # Only use the last item from encode_response
+                usage_info = sum(usage_infos)
+                chunk = ChatCompletionChunk2(model=model, choices=choices, usage=None, type=type)
+                logger.debug(chunk)
+                yield f"data: {chunk.model_dump_json(by_alias=True)}\n\n"
+
+            choices = [
+                ChatCompletionStreamingChoice(
+                    index=i,
+                    delta=ChoiceDelta(),
+                    finish_reason="stop",
+                )
+                for i in range(request.n)
+            ]
+            last_chunk = ChatCompletionChunk2(
+                model=model,
+                choices=choices,
+                usage=usage_info,
+                type=type
+            )
+            yield f"data: {last_chunk.model_dump_json(by_alias=True)}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            logger.error("Error in streaming response: %s", e, exc_info=True)
+            yield _openai_format_error(e)
+            return
         
     
     async def set_project_info(self, request: SetProjectInfoRequest):
@@ -99,5 +161,5 @@ if __name__ == "__main__":
     ]
 
     api = LlamaIndexAPI(config, spec=OpenAISpecModels(config.api_base), stream=True, enable_async=True)
-    server = ls.LitServer(api, middlewares=middlewares)
+    server = LitServer(api, middlewares=middlewares)
     server.run(port=8000, generate_client_file=False)

@@ -1,3 +1,5 @@
+import json
+
 import httpx
 import os
 
@@ -9,7 +11,8 @@ from llama_index.embeddings.openai_like import OpenAILikeEmbedding
 from litserve.specs.openai import ChatCompletionRequest
 from llama_index.llms.openai_like import OpenAILike
 from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
-from llama_index.core.agent.workflow import AgentStream, FunctionAgent, ReActAgent, ToolCallResult
+from llama_index.core.agent.workflow import AgentStream, FunctionAgent, ReActAgent, ToolCallResult, ToolCall, AgentOutput
+from workflows.events import StopEvent
 from llama_index.core.tools import FunctionTool, QueryEngineTool
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
@@ -23,6 +26,7 @@ from llama_index.core.memory import (
     VectorMemoryBlock,
     InsertMethod,
 )
+from llama_index.core.base.response.schema import Response
 
 
 class DevAssistantConfig:
@@ -53,14 +57,15 @@ class DevAssistantConfig:
 class DevAssistantRag:
     def __init__(self, config: DevAssistantConfig):
         client = httpx.Client(proxy=config.proxy)
+        aclient = httpx.AsyncClient(proxy=config.proxy)
         Settings.llm = OpenAILike(
             model='Coder LLM', api_base=config.api_base,
             is_chat_model=True, is_function_calling_model=True,
-            http_client=client
+            http_client=client, async_http_client=aclient
         )
         Settings.embed_model = OpenAILikeEmbedding(
             model_name="Embedding Model", api_base=config.api_base,
-            http_client=client
+            http_client=client, async_http_client=aclient
         )
         self.config = config
         self.engine = self._init_engine()
@@ -175,17 +180,32 @@ class DevAssistantAgent:
         memory = None
         if request.user and request.user in self.memory_slots:
             memory = self.memory_slots[request.user]
-            print(memory.get_all(MessageStatus.ACTIVE))
-
 
         handler = self.agent.run(messages[-1].content, memory=memory) #chat_history=messages[:-1]
         start_output = False
         last_event = None
         async for event in handler.stream_events():
+            # print(type(event), event)
+            # print()
             if isinstance(event, AgentStream):
-                yield event.delta
+                yield {"type": "reasoning", "role": "assistant", "content": event.delta}
+            elif isinstance(event, ToolCall):
+                yield {"type": "tool_call", "role": "assistant", "content": "", "tool_calls": [{"id": event.tool_id, "function": {"name": event.tool_name, "arguments": json.dumps(event.tool_kwargs)}, "type": "function"}]}
             elif isinstance(event, ToolCallResult):
-                yield '\n'
+                content = ''
+                output = event.tool_output.raw_output
+                if isinstance(output, Response):
+                    content = output.response
+                else:
+                    content = str(output)
+                yield {"type": "tool_call_result", "role": "tool", "content": content, "tool_calls": [{"id": event.tool_id, "function": {"name": event.tool_name, "arguments": json.dumps(event.tool_kwargs)}, "type": "function"}]}
+            elif isinstance(event, StopEvent):
+                content = ''
+                if isinstance(event.result, AgentOutput):
+                    content = event.result.response.content
+                else:
+                    content = str(event.result)
+                yield {"type": "answer", "role": "assistant", "content": content}
             # if isinstance(event, AgentStream):
             #     last_event = event
             #     if start_output:
@@ -193,5 +213,5 @@ class DevAssistantAgent:
             #     if event.response.strip().endswith("\nAnswer:"):
             #         start_output = True
 
-        if not start_output and last_event:
-            yield last_event.response
+        # if not start_output and last_event:
+        #     yield last_event.response
