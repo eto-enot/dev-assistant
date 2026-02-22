@@ -1,4 +1,4 @@
-export type Role = 'user' | 'assistant';
+export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
 export interface HistoryMessage {
     role: Role;
@@ -27,4 +27,46 @@ export interface SetProjectInfoRequest {
     session_id: string;
     work_directory: string;
     core_info: string;
+}
+
+export interface ChatCompletionError {
+    error: ChatCompletionErrorInfo;
+}
+
+export interface ChatCompletionErrorInfo {
+    message: string;
+    type: string;
+    code: string;
+}
+
+export interface ChatCompletionChunk {
+    id: string;
+    object: 'chat.completion.chunk';
+    created: number;
+    model: string;
+    choices: ChatCompletionStreamingChoice[];
+}
+
+export interface ChatCompletionStreamingChoice {
+    index: number;
+    finish_reason: string;
+    delta: ChoiceDelta;
+}
+
+export interface ChoiceDelta {
+    role: Role;
+    content: string;
+    tool_call_id?: string;
+    tool_calls?: ToolCall[];
+}
+
+export interface ToolCall {
+    id: string;
+    type: 'function';
+    function: FunctionCall;
+}
+
+export interface FunctionCall {
+    name: string;
+    arguments: string;
 }

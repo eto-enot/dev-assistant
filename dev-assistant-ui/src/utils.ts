@@ -1,4 +1,4 @@
-import type { Role, Settings } from './types';
+import type { ChatCompletionChunk, ChatCompletionError, Role, Settings } from './types';
 
 function getCurrentDirectory() {
     const platform = window.navigator.platform || window.navigator.userAgentData?.platform;
@@ -20,7 +20,7 @@ export function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
-type MessageUpdatedCallback = (messageId: string, accumulatedText: string) => void;
+type MessageUpdatedCallback = (messageId: string, accumulatedText: string, isError?: boolean) => void;
 
 // process streaming response frmo model
 export async function processStreamResponse(response: Response, messageId: string, messageUpdatedCallback: MessageUpdatedCallback) {
@@ -52,12 +52,16 @@ export async function processStreamResponse(response: Response, messageId: strin
                 continue;
 
             try {
-                const parsed = JSON.parse(data);
-                const content = parsed.choices[0]?.delta?.content || '';
-
-                if (content) {
-                    accumulatedText += content;
-                    messageUpdatedCallback(messageId, accumulatedText);
+                const parsed: ChatCompletionChunk | ChatCompletionError = JSON.parse(data);
+                if ('error' in parsed) {
+                    messageUpdatedCallback(messageId, `Error: ${parsed.error.message}`, true);
+                } else {
+                    const choice = parsed.choices[0];
+                    const content = choice?.delta?.content ?? '';
+                    if (content) {
+                        accumulatedText += content;
+                        messageUpdatedCallback(messageId, accumulatedText);
+                    }
                 }
             } catch (e) {
                 console.error('Error parsing stream data:', e);
@@ -154,8 +158,8 @@ export class Message {
 
     public readonly id: string;
     public readonly role: Role;
-
     public content: string;
+    public isError = false;
 
     constructor (id: string, role: Role, content: string) {
         this.id = id;
@@ -172,6 +176,9 @@ export class Message {
     }
 
     get contentHtml() {
+        if (this.isError)
+            return escapeHtml(this.content);
+
         return this.content
             ? renderMarkdown(this.content)
             : (this.role === 'user' ? escapeHtml(this.content) : '');

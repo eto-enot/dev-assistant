@@ -9,7 +9,7 @@ const messageHeight = ref('auto');
 const messageInputRef = useTemplateRef('messageInput');
 
 function sendMessage() {
-    emit('send-message', message.value);
+    emit('send-message', message.value.trim());
 
     // Clear input
     message.value = '';

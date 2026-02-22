@@ -10,7 +10,7 @@ function scrollTop() {
         messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight;
 }
 
-defineExpose({scrollTop});
+defineExpose({ scrollTop });
 </script>
 
 <template>
@@ -26,7 +26,7 @@ defineExpose({scrollTop});
                         <div class="dot"></div>
                         <div class="dot"></div>
                     </div>
-                    <div v-else v-html="msg.contentHtml"></div>
+                    <div v-else v-html="msg.contentHtml" :class="{" error-message": msg.isError }"></div>
                 </div>
             </div>
         </div>

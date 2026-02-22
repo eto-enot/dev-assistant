@@ -89,8 +89,8 @@ async function setActiveConversation(id: string) {
     });
 
     currentConversationId = id;
-    await setProjectInfo(id);
     displayConversation(id);
+    await setProjectInfo(id);
 }
 
 // Display a conversation
@@ -173,11 +173,12 @@ function saveMessageToConversation(role: Role, content: string) {
 }
 
 // Update message content with markdown support
-function updateMessageContent(messageId: string, content: string) {
+function updateMessageContent(messageId: string, content: string, isError?: boolean) {
     const message = messages.value.find(x => x.id === messageId);
     if (message) {
         // Replace typing indicator with markdown content
         message.content = content;
+        message.isError = !!isError;
 
         // Apply syntax highlighting to code blocks
         setTimeout(() => {
@@ -286,7 +287,7 @@ async function sendMessage(message: string) {
 
     } catch (error: any) {
         console.error('Error:', error);
-        updateMessageContent(messageId, `Error: ${error.message}. Please check your endpoint URL and network connection.`);
+        updateMessageContent(messageId, `Error: ${error.message}. Please check your endpoint URL and network connection.`, true);
     } finally {
         isStreaming = false;
         sendDisabled.value = false;
@@ -346,8 +347,8 @@ async function showSettings() {
             <ul class="history-list" v-else>
                 <li class="history-item" v-for="item of historyList" :key="item.id"
                     @click="() => setActiveConversation(item.id)" :class="{ active: item.active }">
-                    <span>{{ item.title }}</span>
-                    <span style="float: right" @click="() => removeConversation(item)">
+                    <span style="overflow: hidden; flex-grow: 1">{{ item.title }}</span>
+                    <span @click="() => removeConversation(item)">
                         <i class="fas fa-xmark" />
                     </span>
                 </li>
