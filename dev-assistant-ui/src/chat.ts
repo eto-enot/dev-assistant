@@ -1,5 +1,5 @@
 import { Marked } from "marked";
-import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallMessageUpdateEvent, type MessageUpdateEvent } from "./events";
+import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallConfirmMessageUpdateEvent, ToolCallMessageUpdateEvent, type MessageUpdateEvent } from "./events";
 import type { Role } from "./types";
 import { markedHighlight } from "marked-highlight";
 import hljs from 'highlight.js';
@@ -107,6 +107,8 @@ export class Message {
     public reasoning = '';
     public isError = false;
     public isReasoningCollapsed = true;
+    public toolConfirmRequested = false;
+    public toolConfirmMessage = '';
 
     constructor(id: string, role: Role, content: string) {
         this.id = id;
@@ -125,9 +127,17 @@ export class Message {
             this.content += event.content;
         } else if (event instanceof ToolCallMessageUpdateEvent) {
             this.reasoning += event.content + '\n';
+        } else if (event instanceof ToolCallConfirmMessageUpdateEvent) {
+            this.toolConfirmRequested = true;
+            this.toolConfirmMessage = event.content;
         } else {
             throw new Error('Unknown event type: ' + event.constructor);
         }
+    }
+
+    confirm(isAllowed: boolean) {
+        this.toolConfirmRequested = false;
+        this.toolConfirmMessage = '';
     }
 
     get avatarIcon() {

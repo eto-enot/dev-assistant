@@ -1,3 +1,5 @@
+import type { FunctionCall } from "./types";
+
 export abstract class MessageUpdateEvent {
     constructor(public content = '') {
 
@@ -23,6 +25,12 @@ export class ToolCallMessageUpdateEvent extends MessageUpdateEvent {
 }
 
 export class ErrorMessageUpdateEvent extends MessageUpdateEvent {
+    constructor(content: string) {
+        super(content);
+    }
+}
+
+export class ToolCallConfirmMessageUpdateEvent extends MessageUpdateEvent {
     constructor(content: string) {
         super(content);
     }

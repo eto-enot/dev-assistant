@@ -4,7 +4,7 @@ import httpx
 import os
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings, StorageContext
 from llama_index.embeddings.openai_like import OpenAILikeEmbedding
@@ -12,12 +12,13 @@ from litserve.specs.openai import ChatCompletionRequest
 from llama_index.llms.openai_like import OpenAILike
 from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
 from llama_index.core.agent.workflow import AgentStream, FunctionAgent, ReActAgent, ToolCallResult, ToolCall, AgentOutput
+from llama_index.core.workflow import Context, InputRequiredEvent, HumanResponseEvent
 from workflows.events import StopEvent
-from llama_index.core.tools import FunctionTool, QueryEngineTool
+from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolOutput
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from model import SetProjectInfoRequest
+from model import ConfirmToolCallRequest, SetProjectInfoRequest
 from llama_index.core.storage.chat_store.base_db import MessageStatus
 from llama_index.core.memory import (
     Memory,
@@ -89,14 +90,30 @@ class DevAssistantRag:
         return index.as_query_engine(similarity_top_k=5)
     
 
+class DangerQueryEngineTool(QueryEngineTool):
+    def __init__(self, query_engine, metadata, resolve_input_errors: bool = True):
+        super().__init__(query_engine, metadata, resolve_input_errors)
+
+    def call(self, *args: Any, **kwargs: Any):
+        query_str = self._get_query_str(*args, **kwargs)
+        response = self._query_engine.query(query_str)
+        return ToolOutput(
+            content=str(response),
+            tool_name=self.metadata.get_name(),
+            raw_input={"input": query_str},
+            raw_output=response,
+        )    
+    
+
 class DevAssistantAgent:
     def __init__(self, rag: DevAssistantRag):
         self.rag = rag
         mult = FunctionTool.from_defaults(self.multiply)
-        rag_tool = QueryEngineTool.from_defaults(
-            self.rag.engine, 'search',
-            'Useful for answering natural language questions about to find something or where something is located.'
-        )
+        rag_tool = FunctionTool.from_defaults(self.search)
+        # rag_tool = DangerQueryEngineTool.from_defaults(
+        #     self.rag.engine, 'search',
+        #     'Useful for answering natural language questions about to find something or where something is located.'
+        # )
         # self.engine = index.as_chat_engine(streaming=True, similarity_top_k=2)
         # self.agent = FunctionAgent(
         #     tools=[mult, rag_tool],
@@ -104,6 +121,7 @@ class DevAssistantAgent:
         #     llm=Settings.llm
         # )
         self.agent = ReActAgent(tools=[mult, rag_tool], verbose=True)
+        self.ctx = Context(self.agent)
         self.work_dirs: dict[str, str] = dict()
         self.memory_slots: dict[str, Memory] = dict()
 
@@ -150,17 +168,33 @@ class DevAssistantAgent:
         print(f'multiply called: {a}, {b}')
         return a * b
     
-    async def search(self, query: Annotated[str, 'What to find']) -> str:
-        """ Useful for answering natural language questions about to find something."""
-        print(f'search called: {query}')
-        response = await self.rag.engine.aquery(query)
-        return str(response)
+    async def search(self, ctx: Context, input: Annotated[str, 'What to find']):
+        """Useful for answering natural language questions about to find something or where something is located."""
+        question = "Assistant wants to call the tool: search\nAre you sure you want to proceed?"
+        response = await ctx.wait_for_event(
+            HumanResponseEvent,
+            waiter_id=question,
+            waiter_event=InputRequiredEvent(
+                prefix=question,
+            ),
+        )
+        if response.response:
+            response = await self.rag.engine.aquery(input)
+            return response.response
+        else:
+            return 'User declined tool calling'
     
     def stream(self, request: ChatCompletionRequest | SetProjectInfoRequest):
         if isinstance(request, ChatCompletionRequest):
             return self._stream_chat_message(request)
         elif isinstance(request, SetProjectInfoRequest):
             return self._set_project_info(request)
+        elif isinstance(request, ConfirmToolCallRequest):
+            return self._confirm_tool_call(request)
+        
+    async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
+        self.ctx.send_event(HumanResponseEvent(response=request.call_allowed))
+        if False: yield
         
     async def _set_project_info(self, request: SetProjectInfoRequest):
         self.work_dirs[request.session_id] = request.work_directory
@@ -178,10 +212,13 @@ class DevAssistantAgent:
         ]
 
         memory = None
-        if request.user and request.user in self.memory_slots:
-            memory = self.memory_slots[request.user]
+        history = None
+        # if request.user and request.user in self.memory_slots:
+        #     memory = self.memory_slots[request.user]
+        # else:
+        history = messages[:-1]
 
-        handler = self.agent.run(messages[-1].content, memory=memory) #chat_history=messages[:-1]
+        handler = self.agent.run(messages[-1].content, ctx=self.ctx, memory=memory, chat_history=history)
         start_output = False
         last_event = None
         async for event in handler.stream_events():
@@ -206,6 +243,8 @@ class DevAssistantAgent:
                 else:
                     content = str(event.result)
                 yield {"type": "answer", "role": "assistant", "content": content}
+            elif isinstance(event, InputRequiredEvent):
+                yield {"type": "tool_call_confirm", "role": "tool", "content": event.prefix}
             # if isinstance(event, AgentStream):
             #     last_event = event
             #     if start_output:

@@ -19,7 +19,7 @@ from fastapi import HTTPException, Request, Response
 from agent import DevAssistantAgent, DevAssistantConfig, DevAssistantRag
 from starlette.middleware.cors import CORSMiddleware
 from litserve.utils import ResponseBufferItem
-from model import SetProjectInfoRequest
+from model import ConfirmToolCallRequest, SetProjectInfoRequest
 import logging
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,8 @@ class OpenAISpecModels(OpenAISpec):
     def pre_setup(self, lit_api: LitAPI):
         self.add_endpoint('/v1/models', self.models, ["GET"])
         self.add_endpoint('/v1/models', self.options_models, ["OPTIONS"])
-        self.add_endpoint('/set-project-info', self.set_project_info, ["POST"])
+        self.add_endpoint('/set-project-info', self._set_project_info, ["POST"])
+        self.add_endpoint('/confirm-tool-call', self._confirm_tool_call, ["POST"])
         super().pre_setup(lit_api)
 
     async def models(self, request: Request):
@@ -68,7 +69,7 @@ class OpenAISpecModels(OpenAISpec):
         return Response(status_code=200)
     
     def populate_context(self, context, request):
-        if isinstance(request, SetProjectInfoRequest):
+        if isinstance(request, SetProjectInfoRequest) or isinstance(request, ConfirmToolCallRequest):
             return
         super().populate_context(context, request)
 
@@ -125,8 +126,17 @@ class OpenAISpecModels(OpenAISpec):
             yield _openai_format_error(e)
             return
         
+    async def _set_project_info(self, request: SetProjectInfoRequest):
+        self._server._callback_runner.trigger_event(
+            EventTypes.ON_REQUEST.value,
+            active_requests=self._server.active_requests,
+            litserver=self._server,
+        )
+
+        self._put_request_to_queue(request)        
+        return Response(status_code=200)
     
-    async def set_project_info(self, request: SetProjectInfoRequest):
+    async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
         self._server._callback_runner.trigger_event(
             EventTypes.ON_REQUEST.value,
             active_requests=self._server.active_requests,

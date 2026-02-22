@@ -13,3 +13,8 @@ dependencies = [
     "llama-index-vector-stores-qdrant>=0.9.1",
     "qdrant-client>=1.16.2",
 ]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+]

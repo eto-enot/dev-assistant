@@ -1,5 +1,5 @@
-import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, MessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallMessageUpdateEvent } from './events';
-import type { ChatCompletionChunk, ChatCompletionError, Role, Settings } from './types';
+import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, MessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallConfirmMessageUpdateEvent, ToolCallMessageUpdateEvent } from './events';
+import type { ChatCompletionChunk, ChatCompletionError, FunctionCall, Role, Settings } from './types';
 
 function getCurrentDirectory() {
     const platform = window.navigator.platform || window.navigator.userAgentData?.platform;
@@ -38,6 +38,7 @@ export async function processStreamResponse(response: Response, messageId: strin
 
         const chunk = decoder.decode(value);
         const lines = chunk.split('\n').filter(line => line.trim() !== '');
+        let callInfo: FunctionCall | undefined;
 
         for (const line of lines) {
             // skip non-data lines
@@ -72,10 +73,14 @@ export async function processStreamResponse(response: Response, messageId: strin
                             event = new ReasoningMessageUpdateEvent(content);
                             break;
                         case 'tool_call':
-                            const text = `Tool called: ${choice?.delta.tool_calls![0]?.function}`;
+                            callInfo = choice?.delta.tool_calls![0]?.function;
+                            const text = `Tool call: ${callInfo?.name}`;
                             event = new ToolCallMessageUpdateEvent(text);
                             break;
                         case 'tool_call_result':
+                            break;
+                        case 'tool_call_confirm':
+                            event = new ToolCallConfirmMessageUpdateEvent(content);
                             break;
                         default:
                             throw new Error('Unknown message type: ' + parsed.type);

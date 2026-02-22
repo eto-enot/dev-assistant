@@ -29,6 +29,11 @@ export interface SetProjectInfoRequest {
     core_info: string;
 }
 
+export interface ConfirmToolCallRequest {
+    session_id: string;
+    call_allowed: boolean;
+}
+
 export interface ChatCompletionError {
     error: ChatCompletionErrorInfo;
 }
@@ -44,7 +49,7 @@ export interface ChatCompletionChunk {
     object: 'chat.completion.chunk';
     created: number;
     model: string;
-    type: 'reasoning' | 'tool_call' | 'tool_call_result' | 'answer';
+    type: 'reasoning' | 'tool_call' | 'tool_call_result' | 'tool_call_confirm' | 'answer';
     choices: ChatCompletionStreamingChoice[];
 }
 

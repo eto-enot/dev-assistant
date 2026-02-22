@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef } from 'vue';
 import { generateId, processStreamResponse, getDefaultSettings } from './utils';
-import type { Conversations, Role, SetProjectInfoRequest, Settings } from './types';
+import type { ConfirmToolCallRequest, Conversations, Role, SetProjectInfoRequest, Settings } from './types';
 // import hljs from 'highlight.js';
 import Prompt from './Prompt.vue';
 import Messages from './Messages.vue';
@@ -323,6 +323,21 @@ async function showSettings() {
             console.error(err);
     }
 }
+
+function onToolConfirm(isAllowed: boolean) {
+    const request: ConfirmToolCallRequest = {
+        session_id: currentConversationId,
+        call_allowed: isAllowed
+    };
+
+    fetch(settings.value.apiUrl + '/confirm-tool-call', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+    });
+}
 </script>
 
 <template>
@@ -357,7 +372,7 @@ async function showSettings() {
         </div>
 
         <div class="chat-container">
-            <Messages :messages="messages" ref="messagesContainer"></Messages>
+            <Messages :messages="messages" ref="messagesContainer" @tool-confirm="onToolConfirm"></Messages>
             <Prompt @send-message="sendMessage" :send-disabled="sendDisabled"></Prompt>
         </div>
     </div>

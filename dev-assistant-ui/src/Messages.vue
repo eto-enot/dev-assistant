@@ -2,6 +2,7 @@
 import { onMounted, useTemplateRef, watch } from 'vue';
 import type { Message } from './chat';
 
+const emit = defineEmits(['tool-confirm'])
 const props = defineProps<{ messages: Message[] }>();
 const messagesContainerRef = useTemplateRef('messagesContainer');
 const reasoningRef = useTemplateRef('reasoning');
@@ -21,6 +22,11 @@ onMounted(() => {
         });
     }, 100);
 });
+
+function onConfirm(message: Message, isAllowed: boolean) {
+    message.confirm(isAllowed);
+    emit('tool-confirm', isAllowed);
+}
 </script>
 
 <template>
@@ -35,8 +41,8 @@ onMounted(() => {
                         <a href="javascript:void(0)" class="reasoning-btn"
                             @click="() => msg.isReasoningCollapsed = !msg.isReasoningCollapsed">Reasoning</a>
                     </span>
-                    <div v-text="msg.reasoning" class="reasoning-collapsed" v-if="msg.isReasoningCollapsed"
-                        ref="reasoning"></div>
+                    <div class="reasoning-collapsed" v-if="msg.isReasoningCollapsed" ref="reasoning">{{ msg.reasoning }}
+                    </div>
                     <div v-html="msg.reasoningHtml" v-else></div>
                 </div>
                 <div class="markdown-content">
@@ -46,6 +52,13 @@ onMounted(() => {
                         <div class="dot"></div>
                     </div>
                     <div v-else v-html="msg.contentHtml" :class="{ 'error-message': msg.isError }"></div>
+                </div>
+                <div class="tool-confirm-content" v-if="msg.toolConfirmRequested">
+                    <div class="tool-confirm-message">{{ msg.toolConfirmMessage }}</div>
+                    <div class="tool-confirm-buttons">
+                        <button class="btn btn-tool-confirm-yes" @click="onConfirm(msg, true)">Yes</button>
+                        <button class="btn btn-tool-confirm-no" @click="onConfirm(msg, false)">No</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -76,5 +89,32 @@ onMounted(() => {
 
 .reasoning-btn {
     color: aquamarine;
+}
+
+.tool-confirm-content {
+    display: flex;
+    border: solid 1px lightgray;
+    border-radius: 4px;
+    padding: 0 4px;
+}
+
+.tool-confirm-message {
+    flex-grow: 1;
+    white-space: pre-wrap;
+}
+
+.btn-tool-confirm-yes {
+    padding: 2px 4px;
+}
+
+.btn-tool-confirm-no {
+    padding: 2px 4px;
+    background-color: darkred;
+}
+
+.tool-confirm-buttons {
+    display: flex;
+    gap: 4px;
+    align-self: center;
 }
 </style>
