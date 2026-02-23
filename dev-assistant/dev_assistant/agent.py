@@ -19,7 +19,7 @@ from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolOutput
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from tools import CalculatorTool, CreateFileTool, ReadFileTool
+from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool
 from model import ConfirmToolCallRequest, SetProjectInfoRequest
 from llama_index.core.storage.chat_store.base_db import MessageStatus
 from llama_index.core.memory import (
@@ -123,6 +123,7 @@ Use query_engine_tool for:
 - answer questions about source code behavior
 - answer questions about source code description
 - searching source code repository
+Do NOT use this tool with files in working directory
 Usage Cost: 50
 """
         rag_tool = QueryEngineTool.from_defaults(
@@ -131,13 +132,14 @@ Usage Cost: 50
         )
         read_file = ReadFileTool()
         create_file = CreateFileTool()
+        find_file = FindFileTool()
         # self.engine = index.as_chat_engine(streaming=True, similarity_top_k=2)
         # self.agent = FunctionAgent(
         #     tools=[mult, rag_tool],
         #     system_prompt="You are a helpful assistant that can perform calculations and search through documents to answer questions.",
         #     llm=Settings.llm
         # )
-        self.agent = ReActAgent(tools=[CalculatorTool(), rag_tool, read_file, create_file], verbose=True)
+        self.agent = ReActAgent(tools=[CalculatorTool(), rag_tool, read_file, create_file, find_file], verbose=True)
         self.agent.formatter = ReActChatFormatter.from_defaults(
             system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
         self.work_dirs: dict[str, str] = dict()
@@ -182,7 +184,7 @@ Usage Cost: 50
         ]
         memory = Memory.from_defaults(
             session_id=session_id,
-            token_limit=40000,
+            token_limit=20000,
             memory_blocks=blocks,
             insert_method=InsertMethod.USER,
             # memory_blocks_template=MEMORY_BLOCKS_TEMPLATE
