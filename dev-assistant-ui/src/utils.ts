@@ -74,7 +74,7 @@ export async function processStreamResponse(response: Response, messageId: strin
                             break;
                         case 'tool_call':
                             callInfo = choice?.delta.tool_calls![0]?.function;
-                            const text = `Tool call: ${callInfo?.name}`;
+                            const text = `Tool Call: ${callInfo?.name}`;
                             event = new ToolCallMessageUpdateEvent(text);
                             break;
                         case 'tool_call_result':

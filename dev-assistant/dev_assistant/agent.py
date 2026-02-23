@@ -18,6 +18,7 @@ from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolOutput
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
+from tools import CalculatorTool, ReadFileTool
 from model import ConfirmToolCallRequest, SetProjectInfoRequest
 from llama_index.core.storage.chat_store.base_db import MessageStatus
 from llama_index.core.memory import (
@@ -28,6 +29,27 @@ from llama_index.core.memory import (
     InsertMethod,
 )
 from llama_index.core.base.response.schema import Response
+from llama_index.core.agent.react.formatter import ReActChatFormatter
+from llama_index.core.prompts import RichPromptTemplate
+
+
+MEMORY_BLOCKS_TEMPLATE = RichPromptTemplate(
+"""
+Below are some basic facts provided by the User. Use them when making your answer, as needed.
+
+{% for (block_name, block_content) in memory_blocks %}
+<{{ block_name }}>
+  {% for block in block_content %}
+    {% if block.block_type == "text" %}
+{{ block.text }}
+    {% endif %}
+  {% endfor %}
+</{{ block_name }}>
+{% endfor %}
+
+---
+"""
+)
 
 
 class DevAssistantConfig:
@@ -90,40 +112,34 @@ class DevAssistantRag:
         return index.as_query_engine(similarity_top_k=5)
     
 
-class DangerQueryEngineTool(QueryEngineTool):
-    def __init__(self, query_engine, metadata, resolve_input_errors: bool = True):
-        super().__init__(query_engine, metadata, resolve_input_errors)
-
-    def call(self, *args: Any, **kwargs: Any):
-        query_str = self._get_query_str(*args, **kwargs)
-        response = self._query_engine.query(query_str)
-        return ToolOutput(
-            content=str(response),
-            tool_name=self.metadata.get_name(),
-            raw_input={"input": query_str},
-            raw_output=response,
-        )    
-    
-
 class DevAssistantAgent:
     def __init__(self, rag: DevAssistantRag):
         self.rag = rag
-        mult = FunctionTool.from_defaults(self.multiply)
-        rag_tool = FunctionTool.from_defaults(self.search)
-        # rag_tool = DangerQueryEngineTool.from_defaults(
-        #     self.rag.engine, 'search',
-        #     'Useful for answering natural language questions about to find something or where something is located.'
-        # )
+        # mult = FunctionTool.from_defaults(self.calculator)
+        # rag_tool = FunctionTool.from_defaults(self.search_codebase)
+        rag_tool = QueryEngineTool.from_defaults(
+            self.rag.engine,
+            description='Use it for answer questions about code behavior, code description or find code snippet.'
+        )
+        read_file = ReadFileTool()
         # self.engine = index.as_chat_engine(streaming=True, similarity_top_k=2)
         # self.agent = FunctionAgent(
         #     tools=[mult, rag_tool],
         #     system_prompt="You are a helpful assistant that can perform calculations and search through documents to answer questions.",
         #     llm=Settings.llm
         # )
-        self.agent = ReActAgent(tools=[mult, rag_tool], verbose=True)
-        self.ctx = Context(self.agent)
+        self.agent = ReActAgent(tools=[CalculatorTool(), rag_tool, read_file], verbose=True)
+        self.agent.formatter = ReActChatFormatter.from_defaults(
+            system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
         self.work_dirs: dict[str, str] = dict()
+        self.contexts: dict[str, Context] = dict()
         self.memory_slots: dict[str, Memory] = dict()
+
+    def _get_system_prompt(self):
+        with (Path(__file__).parents[0] / Path("system_prompt_template.md")).open("r") as f:
+            prompt_str = f.read()
+        return prompt_str.replace("{context_prompt}", "", 1)
+
 
     def _create_static_memory_block(self, core_info: str):
         return StaticMemoryBlock(
@@ -160,16 +176,21 @@ class DevAssistantAgent:
             token_limit=40000,
             memory_blocks=blocks,
             insert_method=InsertMethod.USER,
+            # memory_blocks_template=MEMORY_BLOCKS_TEMPLATE
         )
         return memory
     
-    def multiply(self, a: Annotated[float, 'First multiplier'], b: Annotated[float, 'Second multiplier']) -> float:
-        """ Useful for multiplying two numbers."""
-        print(f'multiply called: {a}, {b}')
-        return a * b
+    def calculator(self, expression: Annotated[str, 'Arithmetic expression']):
+        """Useful for arithmetic calculations."""
+        try:
+            print(f'Calculator called: {expression}')
+            result = eval(expression, {"__builtins__": {}}, {})
+            return str(result)
+        except Exception as e:
+            return f"Calculation error: {str(e)}"
     
-    async def search(self, ctx: Context, input: Annotated[str, 'What to find']):
-        """Useful for answering natural language questions about to find something or where something is located."""
+    async def search_codebase(self, ctx: Context, input: Annotated[str, 'What to find']):
+        """Use it for searching the code base, answer questions about code behavior, and code description."""
         question = "Assistant wants to call the tool: search\nAre you sure you want to proceed?"
         response = await ctx.wait_for_event(
             HumanResponseEvent,
@@ -182,7 +203,7 @@ class DevAssistantAgent:
             response = await self.rag.engine.aquery(input)
             return response.response
         else:
-            return 'User declined tool calling'
+            return 'User declined tool calling. Please choose another tool or answer without using a tool.'
     
     def stream(self, request: ChatCompletionRequest | SetProjectInfoRequest):
         if isinstance(request, ChatCompletionRequest):
@@ -193,7 +214,9 @@ class DevAssistantAgent:
             return self._confirm_tool_call(request)
         
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
-        self.ctx.send_event(HumanResponseEvent(response=request.call_allowed))
+        if request.session_id in self.contexts:
+            ctx = self.contexts[request.session_id]
+            ctx.send_event(HumanResponseEvent(response=request.call_allowed))
         if False: yield
         
     async def _set_project_info(self, request: SetProjectInfoRequest):
@@ -213,12 +236,22 @@ class DevAssistantAgent:
 
         memory = None
         history = None
-        # if request.user and request.user in self.memory_slots:
-        #     memory = self.memory_slots[request.user]
-        # else:
-        history = messages[:-1]
+        if request.user and request.user in self.memory_slots:
+            memory = self.memory_slots[request.user]
+        else:
+            history = messages[:-1]
 
-        handler = self.agent.run(messages[-1].content, ctx=self.ctx, memory=memory, chat_history=history)
+        ctx = None
+        if request.user:
+            if request.user in self.contexts:
+                ctx = self.contexts[request.user]
+            else:
+                ctx = Context(self.agent)
+                self.contexts[request.user] = ctx
+            if request.user in self.work_dirs:
+                await ctx.store.set('work_dir', self.work_dirs[request.user])
+
+        handler = self.agent.run(messages[-1].content, ctx=ctx, memory=memory, chat_history=history)
         start_output = False
         last_event = None
         async for event in handler.stream_events():

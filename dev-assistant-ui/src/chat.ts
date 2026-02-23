@@ -10,94 +10,28 @@ function escapeHtml(text: string) {
     return div.innerHTML;
 }
 
-function renderMarkdown(text: string) {
-    if (!text) return '';
-
-    let html = escapeHtml(text);
-
-    // Headers
-    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-    // Bold
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
-
-    // Italic
-    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    html = html.replace(/_(.*?)_/g, '<em>$1</em>');
-
-    // Code blocks with language detection
-    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, function (match, lang, code) {
-        const language = lang || 'plaintext';
-        const escapedCode = escapeHtml(code.trim());
-        return `<div class="code-block-wrapper"><button class="copy-code-btn" @click="copyCodeToClipboard">Copy</button><pre><code class="language-${language}">${escapedCode}</code></pre></div>`;
-    });
-
-    // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Blockquotes
-    html = html.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
-
-    // Lists (unordered)
-    html = html.replace(/^\s*[-*+] (.*$)/gim, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
-
-    // Lists (ordered)
-    html = html.replace(/^\s*\d+\. (.*$)/gim, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>)/g, '<ol>$1</ol>');
-
-    // Links
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-
-    // Horizontal rule
-    html = html.replace(/^---$/gim, '<hr>');
-
-    // Tables (simple support)
-    html = html.replace(/\|(.+)\|/g, function (match, row: string) {
-        const cells = row.split('|').map(cell => cell.trim());
-        if (cells.some(cell => cell.includes('---'))) {
-            return ''; // Skip separator rows for now
-        }
-        const cellTags = cells.map(cell => `<td>${cell}</td>`).join('');
-        return `<tr>${cellTags}</tr>`;
-    });
-
-    // Wrap table rows in table tags
-    const tableRows = html.match(/<tr>.*?<\/tr>/g);
-    if (tableRows && tableRows.length > 0) {
-        const tableHeader = '<table><thead><tr><th>Column 1</th><th>Column 2</th></tr></thead><tbody>';
-        const tableFooter = '</tbody></table>';
-        html = html.replace(/(<tr>.*?<\/tr>)/g, tableHeader + tableRows.join('') + tableFooter);
-    }
-
-    // Paragraphs (ensure proper wrapping)
-    html = html.replace(/\n\n/g, '</p><p>');
-    html = html.replace(/<p><\/p>/g, '');
-
-    // Handle line breaks
-    html = html.replace(/\n/g, '<br>');
-
-    // Wrap in paragraph tags if not already wrapped
-    if (!html.startsWith('<') || html.startsWith('<br>')) {
-        html = '<p>' + html + '</p>';
-    }
-
-    return html;
-}
-
 const marked = new Marked(
     markedHighlight({
         emptyLangClass: 'hljs',
         langPrefix: 'hljs language-',
-        highlight(code, lang, info) {
+        highlight(code, lang, _info) {
             const language = hljs.getLanguage(lang) ? lang : 'plaintext';
             return hljs.highlight(code, { language }).value;
         }
     })
 );
+
+function renderMarkdown(text: string) {
+    if (!text) return '';
+
+    text = text.replace(/Thought:/gm, '\n**Thought:**');
+    text = text.replace(/Action:/gm, '\n**Action:**');
+    text = text.replace(/Answer:/gm, '\n**Answer:**');
+    text = text.replace(/Action Input:/gm, '\n**Action Input:**');
+    text = text.replace(/Tool Call:/gm, '\n**Tool Call:**');
+
+    return marked.parse(text);
+}
 
 export class Message {
 
@@ -122,11 +56,12 @@ export class Message {
             this.reasoning = '';
             this.content = this.content;
         } else if (event instanceof ReasoningMessageUpdateEvent) {
-            this.reasoning += event.content + '\n';
+            this.reasoning += event.content;
         } else if (event instanceof AnswerMessageUpdateEvent) {
             this.content += event.content;
         } else if (event instanceof ToolCallMessageUpdateEvent) {
-            this.reasoning += event.content + '\n';
+            if (!this.reasoning.endsWith(event.content + '\n'))
+                this.reasoning += '\n' + event.content + '\n';
         } else if (event instanceof ToolCallConfirmMessageUpdateEvent) {
             this.toolConfirmRequested = true;
             this.toolConfirmMessage = event.content;
@@ -149,7 +84,7 @@ export class Message {
     }
 
     get reasoningHtml() {
-        return marked.parse(this.reasoning);
+        return renderMarkdown(this.reasoning);
     }
 
     get contentHtml() {

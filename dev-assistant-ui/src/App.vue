@@ -66,6 +66,9 @@ function loadConversations() {
 }
 
 async function setProjectInfo(sessionId: string) {
+    if (!sessionId)
+        return;
+
     const response = await fetch(settings.value.apiUrl + '/set-project-info', {
         method: "POST",
         headers: {
@@ -245,6 +248,7 @@ async function sendMessage(message: string) {
 
     // Add user message to UI
     addMessageToUI('user', message);
+    saveMessageToConversation('user', message);
 
     // Disable send button while streaming
     isStreaming = true;
@@ -253,15 +257,10 @@ async function sendMessage(message: string) {
     // Add assistant placeholder message
     const messageId = addMessageToUI('assistant', '');
 
-    const model = settings.value.model;
-
-    // Save user message to conversation history
-    saveMessageToConversation('user', message);
-
     // Prepare the request
     const requestBody = {
         user: currentConversationId,
-        model: model,
+        model: settings.value.model,
         messages: getConversationHistory(),
         stream: true,
     };
@@ -318,6 +317,7 @@ async function showSettings() {
     try {
         await settingsDialogRef.value?.showModal();
         sessionStorage.setItem('settings', JSON.stringify(settings.value));
+        await setProjectInfo(currentConversationId);
     } catch (err: any) {
         if (err)
             console.error(err);
