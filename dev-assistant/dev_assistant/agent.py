@@ -13,12 +13,13 @@ from llama_index.llms.openai_like import OpenAILike
 from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
 from llama_index.core.agent.workflow import AgentStream, FunctionAgent, ReActAgent, ToolCallResult, ToolCall, AgentOutput
 from llama_index.core.workflow import Context, InputRequiredEvent, HumanResponseEvent
+from qdrant_client.models import CreateFieldIndex
 from workflows.events import StopEvent
 from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolOutput
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from tools import CalculatorTool, ReadFileTool
+from tools import CalculatorTool, CreateFileTool, ReadFileTool
 from model import ConfirmToolCallRequest, SetProjectInfoRequest
 from llama_index.core.storage.chat_store.base_db import MessageStatus
 from llama_index.core.memory import (
@@ -117,18 +118,26 @@ class DevAssistantAgent:
         self.rag = rag
         # mult = FunctionTool.from_defaults(self.calculator)
         # rag_tool = FunctionTool.from_defaults(self.search_codebase)
+        rag_descr = """
+Use query_engine_tool for:
+- answer questions about source code behavior
+- answer questions about source code description
+- searching source code repository
+Usage Cost: 50
+"""
         rag_tool = QueryEngineTool.from_defaults(
             self.rag.engine,
-            description='Use it for answer questions about code behavior, code description or find code snippet.'
+            description=rag_descr
         )
         read_file = ReadFileTool()
+        create_file = CreateFileTool()
         # self.engine = index.as_chat_engine(streaming=True, similarity_top_k=2)
         # self.agent = FunctionAgent(
         #     tools=[mult, rag_tool],
         #     system_prompt="You are a helpful assistant that can perform calculations and search through documents to answer questions.",
         #     llm=Settings.llm
         # )
-        self.agent = ReActAgent(tools=[CalculatorTool(), rag_tool, read_file], verbose=True)
+        self.agent = ReActAgent(tools=[CalculatorTool(), rag_tool, read_file, create_file], verbose=True)
         self.agent.formatter = ReActChatFormatter.from_defaults(
             system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
         self.work_dirs: dict[str, str] = dict()
@@ -216,7 +225,10 @@ class DevAssistantAgent:
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
         if request.session_id in self.contexts:
             ctx = self.contexts[request.session_id]
-            ctx.send_event(HumanResponseEvent(response=request.call_allowed))
+            ctx.send_event(HumanResponseEvent(
+                response=request.call_allowed,
+                session_id=request.session_id
+            ))
         if False: yield
         
     async def _set_project_info(self, request: SetProjectInfoRequest):
@@ -250,6 +262,7 @@ class DevAssistantAgent:
                 self.contexts[request.user] = ctx
             if request.user in self.work_dirs:
                 await ctx.store.set('work_dir', self.work_dirs[request.user])
+                await ctx.store.set('session_id', request.user)
 
         handler = self.agent.run(messages[-1].content, ctx=ctx, memory=memory, chat_history=history)
         start_output = False
