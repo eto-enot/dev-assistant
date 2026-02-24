@@ -7,30 +7,23 @@ services:
     ports:
       - "6333:6333"
       - "6334:6334"
-
+      
   vllm_llm:
-    build: vllm-cuda
+    image: 'ghcr.io/ggml-org/llama.cpp:server-cuda12-b8132'
     runtime: nvidia
     ipc: host
     volumes:
-      - ./vllm-cache:/root/.cache
-      - ./etc/vllm_logging.json:/root/vllm_logging.json
-    environment:
-      - VLLM_LOGGING_CONFIG_PATH=/root/vllm_logging.json
-      - LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/lib/x86_64-linux-gnu
-      # - VLLM_DEBUG_LOG_API_SERVER_RESPONSE=true
+      - /mnt/c/Users/user/AppData/Local/llama.cpp:/models
     command: >
-      ${VLLM_LLM_MODEL}
-      --served_model_name 'Coder LLM'
-      --enable-log-outputs
-      --enable-log-requests
-      --enable-auto-tool-choice
-      --tool-call-parser hermes
-      --gpu-memory-utilization 0.65
-      --dtype bfloat16
-      --max-num-seqs 16
-      --max-num-batched-tokens 2048
-      --speculative-config '{"method": "draft_model", "model": "${VLLM_LLM_DRAFT_MODEL}", "num_speculative_tokens": 4}'
+      -m ${LLAMA_LLM_MODEL}
+      --jinja
+      -fa 1 -cmoe -ngl 99 --n-cpu-moe 30
+      -c 32768
+      --temp 0.7
+      --min-p 0.0 --top-p 0.80 --top-k 20
+      --repeat-penalty 1.1
+      --host 0.0.0.0 --port 8000
+      --metrics
     networks:
       - back_net
     healthcheck:
@@ -46,6 +39,45 @@ services:
           - driver: nvidia
             device_ids: ['${VLLM_GPU_DEVICE}']
             capabilities: [gpu]
+    
+#  vllm_llm:
+#    build: vllm-cuda
+#    runtime: nvidia
+#    ipc: host
+#    volumes:
+#      - ./vllm-cache:/root/.cache
+#      - ./etc/vllm_logging.json:/root/vllm_logging.json
+#    environment:
+#      - VLLM_LOGGING_CONFIG_PATH=/root/vllm_logging.json
+#      - LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/lib/x86_64-linux-gnu
+#      # - VLLM_DEBUG_LOG_API_SERVER_RESPONSE=true
+#    command: >
+#      ${VLLM_LLM_MODEL}
+#      --served_model_name 'Coder LLM'
+#      --enable-log-outputs
+#      --enable-log-requests
+#      --enable-auto-tool-choice
+#      --tool-call-parser hermes
+#      --gpu-memory-utilization 0.65
+#      --dtype bfloat16
+#      --max-num-seqs 16
+#      --max-num-batched-tokens 2048
+#      --speculative-config '{"method": "draft_model", "model": "${VLLM_LLM_DRAFT_MODEL}", "num_speculative_tokens": 4}'
+#    networks:
+#      - back_net
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+#      interval: 15s
+#      timeout: 3s
+#      retries: 30
+#    restart: unless-stopped
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#          - driver: nvidia
+#            device_ids: ['${VLLM_GPU_DEVICE}']
+#            capabilities: [gpu]
 
   vllm_emb:
     build: vllm-cuda
