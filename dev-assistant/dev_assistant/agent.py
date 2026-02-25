@@ -1,5 +1,7 @@
 import json
+import typing
 
+from fastapi.responses import StreamingResponse
 import httpx
 import os
 
@@ -21,6 +23,7 @@ from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool
 from model import ConfirmToolCallRequest, SetProjectInfoRequest
+from config import DevAssistantConfig
 from llama_index.core.storage.chat_store.base_db import MessageStatus
 from llama_index.core.memory import (
     Memory,
@@ -53,31 +56,6 @@ Below are some basic facts provided by the User. Use them when making your answe
 )
 
 
-class DevAssistantConfig:
-    API_BASE_URL_KEY = 'API_BASE_URL'
-    QDRANT_URL_KEY = 'QDRANT_URL'
-    PROXY_URL_KEY = 'PROXY_URL'
-    
-    def __init__(self, api_base: str, qdrant_url: str, proxy: str | None = None):
-        self.api_base = api_base
-        self.qdrant_url = qdrant_url
-        self.proxy = proxy
-
-    @staticmethod
-    def from_env():
-        if not DevAssistantConfig.API_BASE_URL_KEY in os.environ:
-            raise ValueError('API base url not specified.')
-        if not DevAssistantConfig.QDRANT_URL_KEY in os.environ:
-            raise ValueError('Qdrant url not specified.')
-        
-        api_url = os.environ[DevAssistantConfig.API_BASE_URL_KEY]
-        qdrant_url = os.environ[DevAssistantConfig.QDRANT_URL_KEY]
-        proxy = os.environ.get(DevAssistantConfig.PROXY_URL_KEY)
-        print(proxy)
-        
-        return DevAssistantConfig(api_url, qdrant_url, proxy)
-
-
 class DevAssistantRag:
     def __init__(self, config: DevAssistantConfig):
         client = httpx.Client(proxy=config.proxy)
@@ -85,7 +63,7 @@ class DevAssistantRag:
         Settings.llm = OpenAILike(
             model='Coder LLM', api_base=config.api_base,
             is_chat_model=True, is_function_calling_model=True,
-            http_client=client, async_http_client=aclient
+            http_client=client, async_http_client=aclient # type: ignore
         )
         Settings.embed_model = OpenAILikeEmbedding(
             model_name="Embedding Model", api_base=config.api_base,
@@ -191,15 +169,6 @@ Usage Cost: 50
         )
         return memory
     
-    def calculator(self, expression: Annotated[str, 'Arithmetic expression']):
-        """Useful for arithmetic calculations."""
-        try:
-            print(f'Calculator called: {expression}')
-            result = eval(expression, {"__builtins__": {}}, {})
-            return str(result)
-        except Exception as e:
-            return f"Calculation error: {str(e)}"
-    
     async def search_codebase(self, ctx: Context, input: Annotated[str, 'What to find']):
         """Use it for searching the code base, answer questions about code behavior, and code description."""
         question = "Assistant wants to call the tool: search\nAre you sure you want to proceed?"
@@ -207,12 +176,12 @@ Usage Cost: 50
             HumanResponseEvent,
             waiter_id=question,
             waiter_event=InputRequiredEvent(
-                prefix=question,
+                prefix=question, # type: ignore
             ),
         )
         if response.response:
-            response = await self.rag.engine.aquery(input)
-            return response.response
+            query_result = await self.rag.engine.aquery(input)
+            return query_result.response # type: ignore
         else:
             return 'User declined tool calling. Please choose another tool or answer without using a tool.'
     
@@ -228,8 +197,8 @@ Usage Cost: 50
         if request.session_id in self.contexts:
             ctx = self.contexts[request.session_id]
             ctx.send_event(HumanResponseEvent(
-                response=request.call_allowed,
-                session_id=request.session_id
+                response=request.call_allowed, # type: ignore
+                session_id=request.session_id # type: ignore
             ))
         if False: yield
         

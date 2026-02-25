@@ -16,7 +16,8 @@ import dotenv
 
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException, Request, Response
-from agent import DevAssistantAgent, DevAssistantConfig, DevAssistantRag
+from agent import DevAssistantAgent, DevAssistantRag
+from config import DevAssistantConfig
 from starlette.middleware.cors import CORSMiddleware
 from litserve.utils import ResponseBufferItem
 from model import ConfirmToolCallRequest, SetProjectInfoRequest
