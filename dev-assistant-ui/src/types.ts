@@ -27,6 +27,7 @@ export interface SetProjectInfoRequest {
     session_id: string;
     work_directory: string;
     core_info: string;
+    os: string;
 }
 
 export interface ConfirmToolCallRequest {

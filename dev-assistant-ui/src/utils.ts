@@ -1,9 +1,13 @@
 import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, MessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallConfirmMessageUpdateEvent, ToolCallMessageUpdateEvent } from './events';
-import type { ChatCompletionChunk, ChatCompletionError, FunctionCall, Role, Settings } from './types';
+import type { ChatCompletionChunk, ChatCompletionError, FunctionCall, Settings } from './types';
+
+export function getOS() {
+    const platform = window.navigator.platform || window.navigator.userAgentData?.platform;
+    return (platform?.indexOf('Win') ?? -1) >= 0 ? 'Windows' : 'Linux';
+}
 
 function getCurrentDirectory() {
-    const platform = window.navigator.platform || window.navigator.userAgentData?.platform;
-    const isWindows = (platform?.indexOf('Win') ?? -1) >= 0;
+    const isWindows = getOS() === 'Windows';
     const idx = window.location.pathname.lastIndexOf('/');
     return window.location.pathname.substring(isWindows ? 1 : 0, idx);
 }

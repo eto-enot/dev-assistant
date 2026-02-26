@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useTemplateRef } from 'vue';
+import { useTemplateRef, watch } from 'vue';
 import { type Settings } from './types';
 
 let resolve: (value: Settings) => void, reject: (reason?: unknown) => void;
@@ -28,6 +28,11 @@ function onOk() {
     dialogRef.value?.close();
     resolve(settings.value);
 }
+
+watch(() => settings.value.apiUrl, value => {
+    settings.value.apiUrl = value.replace(/\/\s*$/, '');
+});
+
 </script>
 
 <template>

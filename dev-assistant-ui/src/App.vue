@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef } from 'vue';
-import { generateId, processStreamResponse, getDefaultSettings } from './utils';
+import { generateId, processStreamResponse, getDefaultSettings, getOS } from './utils';
 import type { ConfirmToolCallRequest, Conversations, Role, SetProjectInfoRequest, Settings } from './types';
 // import hljs from 'highlight.js';
 import Prompt from './Prompt.vue';
@@ -69,21 +69,26 @@ async function setProjectInfo(sessionId: string) {
     if (!sessionId)
         return;
 
-    const response = await fetch(settings.value.apiUrl + '/set-project-info', {
-        method: "POST",
-        headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(<SetProjectInfoRequest>{
-            session_id: sessionId,
-            work_directory: settings.value.currentDirectory,
-            core_info: settings.value.coreInfo,
-        }),
-    });
+    try {
+        const response = await fetch(settings.value.apiUrl + '/set-project-info', {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(<SetProjectInfoRequest>{
+                session_id: sessionId,
+                work_directory: settings.value.currentDirectory,
+                core_info: settings.value.coreInfo,
+                os: getOS(),
+            }),
+        });
 
-    if (!response.ok)
-        throw new Error(`Error: ${response.status} ${response.statusText}`);
+        if (!response.ok)
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 // Set active conversation
