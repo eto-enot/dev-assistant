@@ -20,7 +20,7 @@ from agent import DevAssistantAgent, DevAssistantRag
 from config import DevAssistantConfig
 from starlette.middleware.cors import CORSMiddleware
 from litserve.utils import ResponseBufferItem
-from model import ConfirmToolCallRequest, SetProjectInfoRequest
+from model import ConfirmToolCallRequest, SetProjectInfoRequest, ListFilesRequest, ChatCompletionChunkType
 import logging
 
 logger = logging.getLogger(__name__)
@@ -45,8 +45,7 @@ class LlamaIndexAPI(LitAPI):
     #         yield ChatMessage(role=out['role'], content=out['content'])
 
 
-class ChatCompletionChunk2(ChatCompletionChunk):
-    type: str = ""
+
 
 class OpenAISpecModels(OpenAISpec):
     def __init__(self, api_url):
@@ -60,6 +59,7 @@ class OpenAISpecModels(OpenAISpec):
         self.add_endpoint('/v1/models', self.options_models, ["OPTIONS"])
         self.add_endpoint('/set-project-info', self._set_project_info, ["POST"])
         self.add_endpoint('/confirm-tool-call', self._confirm_tool_call, ["POST"])
+        self.add_endpoint('/list-files', self._list_files, ["POST"])
         super().pre_setup(lit_api)
 
     async def models(self, request: Request):
@@ -70,7 +70,8 @@ class OpenAISpecModels(OpenAISpec):
         return Response(status_code=200)
     
     def populate_context(self, context, request):
-        if isinstance(request, SetProjectInfoRequest) or isinstance(request, ConfirmToolCallRequest):
+        ignore = (SetProjectInfoRequest, ConfirmToolCallRequest, ListFilesRequest)
+        if isinstance(request, ignore):
             return
         super().populate_context(context, request)
 
@@ -102,7 +103,7 @@ class OpenAISpecModels(OpenAISpec):
 
                 # Only use the last item from encode_response
                 usage_info = sum(usage_infos)
-                chunk = ChatCompletionChunk2(model=model, choices=choices, usage=None, type=type)
+                chunk = ChatCompletionChunkType(model=model, choices=choices, usage=None, type=type)
                 logger.debug(chunk)
                 yield f"data: {chunk.model_dump_json(by_alias=True)}\n\n"
 
@@ -114,7 +115,7 @@ class OpenAISpecModels(OpenAISpec):
                 )
                 for i in range(request.n)
             ]
-            last_chunk = ChatCompletionChunk2(
+            last_chunk = ChatCompletionChunkType(
                 model=model,
                 choices=choices,
                 usage=usage_info,
@@ -128,30 +129,27 @@ class OpenAISpecModels(OpenAISpec):
             return
         
     async def _set_project_info(self, request: SetProjectInfoRequest):
-        self._server._callback_runner.trigger_event(
-            EventTypes.ON_REQUEST.value,
-            active_requests=self._server.active_requests,
-            litserver=self._server,
-        )
-
-        self._put_request_to_queue(request)        
-        return Response(status_code=200)
+        self._api_handler(request)
     
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
+        self._api_handler(request)
+
+    async def _list_files(self, request: ListFilesRequest):
+        self._api_handler(request)
+    
+    def _api_handler(self, request: BaseModel):
         self._server._callback_runner.trigger_event(
             EventTypes.ON_REQUEST.value,
             active_requests=self._server.active_requests,
             litserver=self._server,
         )
 
-        self._put_request_to_queue(request)        
-        return Response(status_code=200)
-    
-    def _put_request_to_queue(self, request: BaseModel):
         request_el = request.model_copy()
         uid = uuid.uuid4()
         self.response_buffer[uid] = ResponseBufferItem(asyncio.Event(), deque())
         self.request_queue.put((self.response_queue_id, uid, time.monotonic(), request_el))
+        
+        return Response(status_code=200)
 
 
 if __name__ == "__main__":

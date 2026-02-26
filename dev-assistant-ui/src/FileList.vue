@@ -10,7 +10,6 @@ const settings = inject<Ref<Settings>>('Settings');
 let curDirectory = settings?.value.currentDirectory?.trim() ?? '.';
 
 onMounted(async () => {
-    console.log('mount');
     await updateFiles();
     watch(model, updateFiles);
 });

@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from litserve.specs.openai import ChatCompletionChunk
 
 class SetProjectInfoRequest(BaseModel):
     session_id: str
@@ -9,3 +10,14 @@ class SetProjectInfoRequest(BaseModel):
 class ConfirmToolCallRequest(BaseModel):
     session_id: str
     call_allowed: bool
+
+class ListFilesRequest(BaseModel):
+    work_directory: str
+    filter: str
+
+class ListFilesResponse(BaseModel):
+    name: str
+    path: str
+
+class ChatCompletionChunkType(ChatCompletionChunk):
+    type: str = ""
