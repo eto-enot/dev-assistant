@@ -152,7 +152,7 @@ class OpenAISpecModels(OpenAISpec):
             return
         
     def _encode_response(self, output):
-        if isinstance(output, list) and len(output) and isinstance(output[0], ListFilesResponseItem):
+        if isinstance(output, ListFilesResponse):
             return output
         return super()._encode_response(output)
         
@@ -173,7 +173,7 @@ class OpenAISpecModels(OpenAISpec):
             elif status == LitAPIStatus.ERROR:
                 raise HTTPException(status_code=500)
             
-            return Response(ListFilesResponse.dump_json(response), status_code=200)
+            return Response(response, status_code=200)
     
     def _put_request_to_queue(self, request: BaseModel):
         self._server._callback_runner.trigger_event(

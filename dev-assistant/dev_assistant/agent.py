@@ -22,7 +22,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool
-from model import ConfirmToolCallRequest, ListFilesRequest, ListFilesResponseItem, SetProjectInfoRequest
+from model import ConfirmToolCallRequest, ListFilesRequest, ListFilesResponse, ListFilesResponseItem, SetProjectInfoRequest
 from config import DevAssistantConfig
 from llama_index.core.storage.chat_store.base_db import MessageStatus
 from llama_index.core.memory import (
@@ -195,7 +195,7 @@ Usage Cost: 50
         elif isinstance(request, ListFilesRequest):
             return self._list_files(request)
         else:
-            raise TypeError('Unsupported request type: ' + type(request))
+            raise TypeError('Unsupported request type: ' + str(type(request)))
         
     async def _list_files(self, request: ListFilesRequest):
         if not request.path:
@@ -204,7 +204,8 @@ Usage Cost: 50
         abs_path = (Path(request.work_directory) / Path(request.path)).resolve()
         
         if not abs_path.exists() or not abs_path.is_dir():
-            return []
+            yield ListFilesResponse(content=[])
+            return
         
         files = []
         for item in abs_path.iterdir():
@@ -217,7 +218,7 @@ Usage Cost: 50
             path = path.replace('\\', '/')
             files.append(ListFilesResponseItem(name=name, path=path))
 
-        yield files
+        yield ListFilesResponse(content=files)
         
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
         if request.session_id in self.contexts:

@@ -45,7 +45,14 @@ export interface ListFilesRequest {
     filter: string;
 }
 
-export type ListFilesResponse = { name: string; path: string }[];
+export interface ListFilesResponse {
+    content: ListFilesResponseItem[];
+}
+
+export interface ListFilesResponseItem {
+    name: string;
+    path: string;
+}
 
 export interface ChatCompletionError {
     error: ChatCompletionErrorInfo;

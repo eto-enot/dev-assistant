@@ -1,4 +1,4 @@
-from typing import Optional, TypeAlias
+from typing import List, Optional, TypeAlias
 
 from pydantic import BaseModel, TypeAdapter
 from litserve.specs.openai import ChatCompletionChunk
@@ -22,8 +22,8 @@ class ListFilesResponseItem(BaseModel):
     name: str
     path: str
 
-ListFilesResponseList: TypeAlias = list[ListFilesResponseItem]
-ListFilesResponse = TypeAdapter(ListFilesResponseList)
+class ListFilesResponse(BaseModel):
+    content: List[ListFilesResponseItem]
 
 class ChatCompletionChunkType(ChatCompletionChunk):
     type: str = ""

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, reactive, watch, type Ref } from 'vue';
-import type { ListFilesRequest, ListFilesResponse, Settings } from './types';
+import type { ListFilesRequest, ListFilesResponse, ListFilesResponseItem, Settings } from './types';
 
 const emit = defineEmits(['file-selected'])
 const model = defineModel<string>();
-const files = reactive([] as ListFilesResponse);
+const files = reactive([] as ListFilesResponseItem[]);
 
 const settings = inject<Ref<Settings>>('Settings')!;
 const curDirectory = computed(() => settings?.value.currentDirectory?.trim() ?? '.');
@@ -17,6 +17,9 @@ onMounted(async () => {
 
 async function updateFiles() {
     try {
+        let filter = (model.value ?? '').trim();
+        if (filter.startsWith('@'))
+            filter = filter.substring(1);
         const response = await fetch(settings.value.apiUrl + '/list-files', {
             method: "POST",
             headers: {
@@ -24,7 +27,7 @@ async function updateFiles() {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify(<ListFilesRequest>{
-                filter: (model.value ?? '').substring(1),
+                filter: filter,
                 work_directory: curDirectory.value,
                 path: curPath,
             }),
@@ -33,14 +36,15 @@ async function updateFiles() {
         if (!response.ok)
             throw new Error(`Error: ${response.status} ${response.statusText}`);
 
+        const data: ListFilesResponse = await response.json();
         files.splice(0, files.length);
-        files.push(...await response.json());
+        files.push(...data.content);
     } catch (e) {
         console.error(e);
     }
 }
 
-async function onClick(file: { name: string; path: string }) {
+async function onClick(file: ListFilesResponseItem) {
     if (file.name.endsWith('/')) {
         if (!curPath.endsWith('/'))
             curPath += '/';
@@ -80,11 +84,11 @@ async function onClick(file: { name: string; path: string }) {
     overflow: auto;
 }
 
-datalist > option {
+datalist>option {
     cursor: pointer;
 }
 
-datalist > option:hover {
+datalist>option:hover {
     background-color: whitesmoke;
     color: black;
 }
