@@ -2,21 +2,20 @@ from pathlib import Path
 from typing import Annotated
 from llama_index.core.tools import FunctionTool
 from llama_index.core.workflow import Context
-
 from .utils import get_tool_metadata
 
 class FindFileTool(FunctionTool):
     def __init__(self):
         tool_metadata = get_tool_metadata(
             self._find_file, "find_file",
-            "Use this tool to find file with given name. After that you can read file content with read_file tool. Cost: 10"
+            "Use this tool to find a file using its name or glob pattern. After that you can read file content with read_file tool. Cost: 10"
         )
         super().__init__(self._find_file, tool_metadata)
 
     async def _find_file(
         self,
         ctx: Context,
-        name: Annotated[str, 'The name of the file we are looking for']):
+        name: Annotated[str, 'The name or glob pattern of the file we are looking for']):
         
         try:
             work_dir = await ctx.store.get('work_dir', None)

@@ -1,5 +1,6 @@
 import os
 from typing import Annotated
+from llama_index.core import Settings
 from llama_index.core.tools import FunctionTool
 from llama_index.core.workflow import Context
 from .utils import get_tool_metadata
@@ -24,6 +25,12 @@ class ReadFileTool(FunctionTool):
                 return f"File '{path}' does not exist."
             
             with open(full_path, 'rt') as f:
-                return f"The content of '{path}' file is:\n\n" + f.read()
+                content = f.read()
+
+            tokens = Settings.tokenizer(content)
+            if len(tokens) > Settings.context_window // 2:
+                return f"The file {path} is too large. Please try another approach."
+            
+            return f"The content of '{path}' file is:\n\n" + content
         except Exception as e:
             return f"read_file tool got the error during execution: {str(e)}"
