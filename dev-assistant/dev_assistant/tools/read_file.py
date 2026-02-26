@@ -10,7 +10,9 @@ class ReadFileTool(FunctionTool):
     def __init__(self):
         tool_metadata = get_tool_metadata(
             self._read_file, "read_file",
-            "To read a file content with given file name or path, use the read_file tool. Usage Cost: 10"
+            "To read a file content with given file name or path, use the read_file tool. " \
+            "The user can explicitly provide the contents of some files in which case there "
+            "is no need to call this tool. Usage Cost: 10"
         )
         super().__init__(self._read_file, tool_metadata)
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, reactive, watch, type Ref } from 'vue';
+import { computed, inject, onMounted, reactive, ref, watch, type Ref } from 'vue';
 import type { ListFilesRequest, ListFilesResponse, ListFilesResponseItem, Settings } from './types';
 
 const emit = defineEmits(['file-selected'])
 const model = defineModel<string>();
 const files = reactive([] as ListFilesResponseItem[]);
+const loading = ref(true);
 
 const settings = inject<Ref<Settings>>('Settings')!;
 const curDirectory = computed(() => settings?.value.currentDirectory?.trim() ?? '.');
@@ -17,9 +18,11 @@ onMounted(async () => {
 
 async function updateFiles() {
     try {
+        loading.value = true;
         let filter = (model.value ?? '').trim();
         if (filter.startsWith('@'))
             filter = filter.substring(1);
+
         const response = await fetch(settings.value.apiUrl + '/list-files', {
             method: "POST",
             headers: {
@@ -39,6 +42,8 @@ async function updateFiles() {
         const data: ListFilesResponse = await response.json();
         files.splice(0, files.length);
         files.push(...data.content);
+
+        loading.value = false;
     } catch (e) {
         console.error(e);
     }
@@ -59,7 +64,12 @@ async function onClick(file: ListFilesResponseItem) {
 <template>
     <div class="file-list">
         <div class="file-list-content">
-            <datalist style="display: block;" v-for="item in files" :key="item.name">
+            <div class="typing-indicator" v-if="loading">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+            <datalist style="display: block;" v-for="item in files" :key="item.name" v-else>
                 <option :value="item.path" @click="() => onClick(item)">{{ item.name }}</option>
             </datalist>
         </div>
@@ -82,6 +92,7 @@ async function onClick(file: ListFilesResponseItem) {
     border: 2px solid whitesmoke;
     max-height: 16rem;
     overflow: auto;
+    background-color: #343541;
 }
 
 datalist>option {

@@ -19,8 +19,8 @@ You have access to the following tools:
 
 You are using Reasoning + Act (ReAct) paradigm. If you can answer user request without using any tools, please answer in the same language as the question and use the following format:
 
-Thought: I can answer without using any tools. I'll use the user's language to answer
-Answer: [your answer here (In the same language as the user's question)]
+  Thought: I can answer without using any tools. I'll use the user's language to answer
+  Answer: [your answer here (In the same language as the user's question)]
 
 Please ALWAYS start with a "Thought:".
 
@@ -42,7 +42,7 @@ If this format is used, please STOP after Action Input parameters are generated.
 
 You should NOT under any circumstances generate "Observation:" youself after Action Input: observation will be provided to you by the tool!
 
-If you cannot answer the question with the Observation provided, try to choose another tool and repeat the reasoning. You should keep repeating the above format till you have enough information to answer the question without using any more tools. At that point, you MUST respond in one of the following two formats:
+If you cannot answer the question with the Observation provided, try to choose another tool and repeat the reasoning. You should keep repeating the above format till you have enough information to answer the question without using any more tools. At that point, you MUST provide the answer in one of the following two formats:
 
   Thought: I can answer without using any more tools. I'll use the user's language to answer
   Answer: [your answer here (In the same language as the user's question)]

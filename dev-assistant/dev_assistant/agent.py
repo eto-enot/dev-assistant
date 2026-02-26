@@ -1,4 +1,5 @@
 import json
+import re
 import typing
 
 from fastapi.responses import StreamingResponse
@@ -10,7 +11,7 @@ from typing import Annotated, Any
 
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings, StorageContext
 from llama_index.embeddings.openai_like import OpenAILikeEmbedding
-from litserve.specs.openai import ChatCompletionRequest
+from litserve.specs.openai import ChatCompletionRequest, TextContent
 from llama_index.llms.openai_like import OpenAILike
 from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
 from llama_index.core.agent.workflow import AgentStream, FunctionAgent, ReActAgent, ToolCallResult, ToolCall, AgentOutput
@@ -241,19 +242,32 @@ Usage Cost: 50
             memory.memory_blocks[0] = self._create_static_memory_block(info)
         if False: yield
 
+    async def _process_message(self, ctx: Context | None, message):
+        if not isinstance(message, str):
+            raise NotImplementedError()
+        if not ctx:
+            return message
+        work_dir = await ctx.store.get('work_dir', None)
+        if not work_dir:
+            return message
+        files = re.findall(r'(?:^|\s)@([^\s]+)', message)
+        token_count = 0
+        message = re.sub(r'(?:^|\s)(@[^\s]+)', '', message)
+        for path in files:
+            full_path = os.path.join(work_dir, path)
+            if not os.path.isfile(full_path):
+                continue
+            with open(full_path, 'rt') as f:
+                content = f.read()
+            tokens = Settings.tokenizer(content)
+            token_count += len(tokens)
+            if token_count > Settings.context_window // 2:
+                break
+            message = f"Content of file '{path}' provided by the User:\n```{content}\n```\n" + message
+        return message
+
+
     async def _stream_chat_message(self, request: ChatCompletionRequest):
-        messages = [
-            ChatMessage(content=message.content, role=MessageRole(message.role))
-            for message in request.messages
-        ]
-
-        memory = None
-        history = None
-        if request.user and request.user in self.memory_slots:
-            memory = self.memory_slots[request.user]
-        else:
-            history = messages[:-1]
-
         ctx = None
         if request.user:
             if request.user in self.contexts:
@@ -264,6 +278,18 @@ Usage Cost: 50
             if request.user in self.work_dirs:
                 await ctx.store.set('work_dir', self.work_dirs[request.user])
                 await ctx.store.set('session_id', request.user)
+        
+        messages = [
+            ChatMessage(content=await self._process_message(ctx, message.content), role=MessageRole(message.role))
+            for message in request.messages
+        ]
+
+        memory = None
+        history = None
+        if request.user and request.user in self.memory_slots:
+            memory = self.memory_slots[request.user]
+        else:
+            history = messages[:-1]
 
         handler = self.agent.run(messages[-1].content, ctx=ctx, memory=memory, chat_history=history)
         start_output = False
