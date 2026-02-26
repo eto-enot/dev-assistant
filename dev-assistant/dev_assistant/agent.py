@@ -36,25 +36,37 @@ from llama_index.core.memory import (
 from llama_index.core.base.response.schema import Response
 from llama_index.core.agent.react.formatter import ReActChatFormatter
 from llama_index.core.prompts import RichPromptTemplate
-
-
-MEMORY_BLOCKS_TEMPLATE = RichPromptTemplate(
-"""
-Below are some basic facts provided by the User. Use them when making your answer, as needed.
-
-{% for (block_name, block_content) in memory_blocks %}
-<{{ block_name }}>
-  {% for block in block_content %}
-    {% if block.block_type == "text" %}
-{{ block.text }}
-    {% endif %}
-  {% endfor %}
-</{{ block_name }}>
-{% endfor %}
-
----
-"""
+from llama_index.core.agent.react.output_parser import ReActOutputParser
+from llama_index.core.agent.react.types import (
+    ActionReasoningStep,
+    BaseReasoningStep,
+    ResponseReasoningStep,
 )
+
+class ReActOutputParser2(ReActOutputParser):
+    def parse(self, output: str, is_streaming: bool = False) -> BaseReasoningStep:
+        try:
+            return super().parse(output, is_streaming)
+        except ValueError as e:
+            if 'Could not extract final answer' not in str(e):
+                raise e
+            answer = self._try_parse_answer_only(output)
+            thought = "(Implicit) I can answer without any more tools!"
+            return ResponseReasoningStep(
+                thought=thought, response=answer, is_streaming=is_streaming
+            )
+            
+    
+    def _try_parse_answer_only(self, input_text: str) -> str:
+        pattern = r"\s*Answer:(.*?)(?:$)"
+
+        match = re.search(pattern, input_text, re.DOTALL)
+        if not match:
+            raise ValueError(
+                f"Could not extract final answer from input text: {input_text}"
+            )
+
+        return match.group(1).strip()
 
 
 class DevAssistantRag:
@@ -121,6 +133,7 @@ Usage Cost: 50
         self.agent = ReActAgent(tools=[CalculatorTool(), rag_tool, read_file, create_file, find_file], verbose=True)
         self.agent.formatter = ReActChatFormatter.from_defaults(
             system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
+        self.agent.output_parser = ReActOutputParser2()
         self.work_dirs: dict[str, str] = dict()
         self.contexts: dict[str, Context] = dict()
         self.memory_slots: dict[str, Memory] = dict()

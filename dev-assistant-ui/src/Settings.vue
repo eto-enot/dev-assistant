@@ -50,7 +50,7 @@ async function onReindex() {
         if (!response.ok)
             throw new Error(`Error: ${response.status} ${response.statusText}`);
 
-        btnReindexText.value = 'Done!';
+        btnReindexText.value = 'Job Scheduled!';
         setTimeout(() => {
             btnReindexText.value = 'Reindex Project';
             btnsDisabled.value = false;
