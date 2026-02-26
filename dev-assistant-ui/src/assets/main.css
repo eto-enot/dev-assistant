@@ -525,6 +525,6 @@ code.hljs {
     transition: background-color 0.2s;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
     background-color: #2d2d3a;
 }

@@ -35,6 +35,10 @@ export interface ConfirmToolCallRequest {
     call_allowed: boolean;
 }
 
+export interface ReindexRequest {
+    work_directory: string;
+}
+
 export interface ChatCompletionError {
     error: ChatCompletionErrorInfo;
 }

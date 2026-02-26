@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useTemplateRef, watch } from 'vue';
-import { type Settings } from './types';
+import { ref, useTemplateRef, watch } from 'vue';
+import { type ReindexRequest, type Settings } from './types';
 
 let resolve: (value: Settings) => void, reject: (reason?: unknown) => void;
 let promise: Promise<Settings>;
@@ -8,6 +8,8 @@ let promise: Promise<Settings>;
 const models = ['Coder LLM'];
 const settings = defineModel<Settings>({ default: {} });
 const dialogRef = useTemplateRef('dialog');
+const btnsDisabled = ref(false);
+const btnReindexText = ref('Reindex Project');
 
 function showModal() {
     dialogRef.value?.showModal();
@@ -29,10 +31,39 @@ function onOk() {
     resolve(settings.value);
 }
 
+async function onReindex() {
+    btnsDisabled.value = true;
+    try {
+        const request: ReindexRequest = {
+            work_directory: settings.value.currentDirectory,
+        };
+
+        const response = await fetch('/reindex', {
+            method: 'POST',
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(request),
+        });
+
+        if (!response.ok)
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
+
+        btnReindexText.value = 'Done!';
+        setTimeout(() => {
+            btnReindexText.value = 'Reindex Project';
+            btnsDisabled.value = false;
+        }, 1000);
+    } catch (e) {
+        console.error(e);
+        btnReindexText.value = 'Error!';
+    }
+}
+
 watch(() => settings.value.apiUrl, value => {
     settings.value.apiUrl = value.replace(/\/\s*$/, '');
 });
-
 </script>
 
 <template>
@@ -75,6 +106,8 @@ watch(() => settings.value.apiUrl, value => {
         <div class="dialog-footer">
             <button class="btn btn-cancel" @click="onClose">Cancel</button>
             <button class="btn" @click="onOk">OK</button>
+            <div style="flex-grow: 1;"></div>
+            <button class="btn" @click="onReindex" :disabled="btnsDisabled">{{ btnReindexText }}</button>
         </div>
     </dialog>
 </template>

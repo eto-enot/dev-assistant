@@ -30,6 +30,7 @@ export default defineConfig({
     server: {
         proxy: {
             '/set-project-info': 'http://example.org',
+            '/reindex': 'http://example.org',
         },
     },
 })
