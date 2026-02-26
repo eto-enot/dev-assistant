@@ -208,7 +208,10 @@ Usage Cost: 50
             self.memory_slots[request.session_id] = self._create_memory(request.session_id, request.core_info)
         else:
             memory = self.memory_slots[request.session_id]
-            memory.memory_blocks[0] = self._create_static_memory_block(request.core_info)
+            info = request.core_info
+            if request.os:
+                info += f"\nTarget OS: {request.os}"
+            memory.memory_blocks[0] = self._create_static_memory_block(info)
         if False: yield
 
     async def _stream_chat_message(self, request: ChatCompletionRequest):
