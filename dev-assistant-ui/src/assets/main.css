@@ -187,6 +187,7 @@ select:focus {
     padding: 1.5rem;
     border-top: 1px solid #4d4d4f;
     background-color: rgba(52, 53, 65, 0.9);
+    position: relative;
 }
 
 .input-area {

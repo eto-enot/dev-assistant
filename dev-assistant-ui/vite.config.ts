@@ -31,6 +31,7 @@ export default defineConfig({
         proxy: {
             '/set-project-info': 'http://example.org',
             '/reindex': 'http://example.org',
+            '/list-files': 'http://example.org',
         },
     },
 })

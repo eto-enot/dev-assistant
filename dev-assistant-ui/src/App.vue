@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref, useTemplateRef } from 'vue';
+import { onMounted, provide, ref, useTemplateRef } from 'vue';
 import { generateId, processStreamResponse, getDefaultSettings, getOS } from './utils';
 import type { ConfirmToolCallRequest, Conversations, Role, SetProjectInfoRequest, Settings } from './types';
-// import hljs from 'highlight.js';
 import Prompt from './Prompt.vue';
 import Messages from './Messages.vue';
 import SettingsDialog from './Settings.vue';
@@ -22,6 +21,8 @@ const sendDisabled = ref(false);
 
 const messagesContainerRef = useTemplateRef('messagesContainer');
 const settingsDialogRef = useTemplateRef('settingsDialog');
+
+provide('Settings', settings);
 
 let isStreaming = false;
 

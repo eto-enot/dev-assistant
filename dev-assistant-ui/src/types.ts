@@ -39,6 +39,13 @@ export interface ReindexRequest {
     work_directory: string;
 }
 
+export interface ListFilesRequest {
+    work_directory: string;
+    filter: string;
+}
+
+export type ListFilesResponse = { name: string; path: string }[];
+
 export interface ChatCompletionError {
     error: ChatCompletionErrorInfo;
 }

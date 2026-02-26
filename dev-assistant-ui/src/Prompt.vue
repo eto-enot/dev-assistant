@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, watch } from 'vue';
+import { computed, ref, useTemplateRef, watch } from 'vue';
+import FileList from './FileList.vue';
+import { refDebounced } from './debounce';
 
 const emit = defineEmits(['send-message']);
 const props = defineProps<{ sendDisabled: boolean }>();
 
 const message = ref('');
 const messageHeight = ref('auto');
+const debouncedMessage = refDebounced(message, 400);
+const context = computed(() => {
+    const match= /(?:\s|^)@[^\s]*$/.exec(debouncedMessage.value);
+    return match ? match[0] : '';
+});
 const messageInputRef = useTemplateRef('messageInput');
 
 function sendMessage() {
     emit('send-message', message.value.trim());
-
-    // Clear input
     message.value = '';
 }
 
@@ -29,6 +34,14 @@ watch(message, function (newValue) {
         ? messageInputRef.value?.scrollHeight + 'px'
         : 'auto';
 });
+
+function onFileSelected(file: string) {
+    const idx = message.value.lastIndexOf('@');
+    if (idx >= 0) {
+        message.value = message.value.substring(0, idx+1) + file + ' ';
+        messageInputRef.value?.focus();
+    }
+}
 </script>
 
 <template>
@@ -40,6 +53,7 @@ watch(message, function (newValue) {
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
+        <FileList v-if="!!context" v-model="context" @file-selected="onFileSelected"></FileList>
     </div>
 </template>
 

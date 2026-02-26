@@ -99,4 +99,3 @@ export async function processStreamResponse(response: Response, messageId: strin
         }
     }
 }
-
