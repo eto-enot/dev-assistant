@@ -22,7 +22,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool
-from model import ConfirmToolCallRequest, SetProjectInfoRequest
+from model import ConfirmToolCallRequest, ListFilesRequest, ListFilesResponseItem, SetProjectInfoRequest
 from config import DevAssistantConfig
 from llama_index.core.storage.chat_store.base_db import MessageStatus
 from llama_index.core.memory import (
@@ -185,13 +185,39 @@ Usage Cost: 50
         else:
             return 'User declined tool calling. Please choose another tool or answer without using a tool.'
     
-    def stream(self, request: ChatCompletionRequest | SetProjectInfoRequest):
+    def stream(self, request):
         if isinstance(request, ChatCompletionRequest):
             return self._stream_chat_message(request)
         elif isinstance(request, SetProjectInfoRequest):
             return self._set_project_info(request)
         elif isinstance(request, ConfirmToolCallRequest):
             return self._confirm_tool_call(request)
+        elif isinstance(request, ListFilesRequest):
+            return self._list_files(request)
+        else:
+            raise TypeError('Unsupported request type: ' + type(request))
+        
+    async def _list_files(self, request: ListFilesRequest):
+        if not request.path:
+            request.path = '.'
+        
+        abs_path = (Path(request.work_directory) / Path(request.path)).resolve()
+        
+        if not abs_path.exists() or not abs_path.is_dir():
+            return []
+        
+        files = []
+        for item in abs_path.iterdir():
+            name = item.name
+            if request.filter.upper() not in name.upper():
+                continue
+            if item.is_dir():
+                name += '/'
+            path = str(item.relative_to(request.work_directory))
+            path = path.replace('\\', '/')
+            files.append(ListFilesResponseItem(name=name, path=path))
+
+        yield files
         
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
         if request.session_id in self.contexts:

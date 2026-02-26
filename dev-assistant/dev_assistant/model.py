@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Optional, TypeAlias
+
+from pydantic import BaseModel, TypeAdapter
 from litserve.specs.openai import ChatCompletionChunk
 
 class SetProjectInfoRequest(BaseModel):
@@ -13,11 +15,15 @@ class ConfirmToolCallRequest(BaseModel):
 
 class ListFilesRequest(BaseModel):
     work_directory: str
+    path: Optional[str] = None
     filter: str
 
-class ListFilesResponse(BaseModel):
+class ListFilesResponseItem(BaseModel):
     name: str
     path: str
+
+ListFilesResponseList: TypeAlias = list[ListFilesResponseItem]
+ListFilesResponse = TypeAdapter(ListFilesResponseList)
 
 class ChatCompletionChunkType(ChatCompletionChunk):
     type: str = ""

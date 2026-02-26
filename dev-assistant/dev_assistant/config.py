@@ -20,6 +20,5 @@ class DevAssistantConfig:
         api_url = os.environ[DevAssistantConfig.API_BASE_URL_KEY]
         qdrant_url = os.environ[DevAssistantConfig.QDRANT_URL_KEY]
         proxy = os.environ.get(DevAssistantConfig.PROXY_URL_KEY)
-        print(proxy)
         
         return DevAssistantConfig(api_url, qdrant_url, proxy)

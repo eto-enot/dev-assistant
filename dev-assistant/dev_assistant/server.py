@@ -2,6 +2,7 @@ import asyncio
 from collections import deque
 from collections.abc import Iterator
 import json
+from pathlib import Path
 import time
 import uuid
 
@@ -20,7 +21,7 @@ from agent import DevAssistantAgent, DevAssistantRag
 from config import DevAssistantConfig
 from starlette.middleware.cors import CORSMiddleware
 from litserve.utils import ResponseBufferItem
-from model import ConfirmToolCallRequest, SetProjectInfoRequest, ListFilesRequest, ChatCompletionChunkType
+from model import ConfirmToolCallRequest, ListFilesResponse, ListFilesResponseItem, SetProjectInfoRequest, ListFilesRequest, ChatCompletionChunkType
 import logging
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,8 @@ class LlamaIndexAPI(LitAPI):
         pass
 
     async def predict(self, x, **kwargs):
+        # if isinstance(x, ListFilesRequest):
+        #     yield self._list_files(x)
         async for token in self.agent.stream(x):
             yield token
 
@@ -44,7 +47,27 @@ class LlamaIndexAPI(LitAPI):
     #     async for out in output:
     #         yield ChatMessage(role=out['role'], content=out['content'])
 
+    # def _list_files(self, request: ListFilesRequest):
+    #     if not request.path:
+    #         request.path = '.'
+        
+    #     abs_path = (Path(request.work_directory) / Path(request.path)).resolve()
+        
+    #     if not abs_path.exists() or not abs_path.is_dir():
+    #         return []
+        
+    #     files = []
+    #     for item in abs_path.iterdir():
+    #         name = item.name
+    #         if request.filter.upper() not in name.upper():
+    #             continue
+    #         if item.is_dir():
+    #             name += '/'
+    #         path = str(item.relative_to(request.work_directory))
+    #         path = path.replace('\\', '/')
+    #         files.append(ListFilesResponseItem(name=name, path=path))
 
+    #     return files
 
 
 class OpenAISpecModels(OpenAISpec):
@@ -128,28 +151,45 @@ class OpenAISpecModels(OpenAISpec):
             yield _openai_format_error(e)
             return
         
+    def _encode_response(self, output):
+        if isinstance(output, list) and len(output) and isinstance(output[0], ListFilesResponseItem):
+            return output
+        return super()._encode_response(output)
+        
     async def _set_project_info(self, request: SetProjectInfoRequest):
-        self._api_handler(request)
+        self._put_request_to_queue(request)
+        return Response(status_code=200)
     
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
-        self._api_handler(request)
+        self._put_request_to_queue(request)
+        return Response(status_code=200)
 
     async def _list_files(self, request: ListFilesRequest):
-        self._api_handler(request)
+        uid, event, queue = self._put_request_to_queue(request)
+        data = self.data_streamer(queue, event, send_status=True)
+        async for response, status in data:
+            if status == LitAPIStatus.ERROR and isinstance(response, HTTPException):
+                raise response
+            elif status == LitAPIStatus.ERROR:
+                raise HTTPException(status_code=500)
+            
+            return Response(ListFilesResponse.dump_json(response), status_code=200)
     
-    def _api_handler(self, request: BaseModel):
+    def _put_request_to_queue(self, request: BaseModel):
         self._server._callback_runner.trigger_event(
             EventTypes.ON_REQUEST.value,
             active_requests=self._server.active_requests,
             litserver=self._server,
         )
 
+        event = asyncio.Event()
+        queue = deque()
         request_el = request.model_copy()
         uid = uuid.uuid4()
-        self.response_buffer[uid] = ResponseBufferItem(asyncio.Event(), deque())
+        self.response_buffer[uid] = ResponseBufferItem(event, queue)
         self.request_queue.put((self.response_queue_id, uid, time.monotonic(), request_el))
-        
-        return Response(status_code=200)
+
+        return uid, event, queue
 
 
 if __name__ == "__main__":

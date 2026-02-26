@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { inject, onMounted, reactive, watch, type Ref } from 'vue';
+import { computed, inject, onMounted, reactive, watch, type Ref } from 'vue';
 import type { ListFilesRequest, ListFilesResponse, Settings } from './types';
 
 const emit = defineEmits(['file-selected'])
 const model = defineModel<string>();
 const files = reactive([] as ListFilesResponse);
 
-const settings = inject<Ref<Settings>>('Settings');
-let curDirectory = settings?.value.currentDirectory?.trim() ?? '.';
+const settings = inject<Ref<Settings>>('Settings')!;
+const curDirectory = computed(() => settings?.value.currentDirectory?.trim() ?? '.');
+let curPath = '.';
 
 onMounted(async () => {
     await updateFiles();
@@ -16,7 +17,7 @@ onMounted(async () => {
 
 async function updateFiles() {
     try {
-        const response = await fetch('/list-files', {
+        const response = await fetch(settings.value.apiUrl + '/list-files', {
             method: "POST",
             headers: {
                 "Accept": "application/json",
@@ -24,7 +25,8 @@ async function updateFiles() {
             },
             body: JSON.stringify(<ListFilesRequest>{
                 filter: (model.value ?? '').substring(1),
-                work_directory: curDirectory,
+                work_directory: curDirectory.value,
+                path: curPath,
             }),
         });
 
@@ -40,9 +42,9 @@ async function updateFiles() {
 
 async function onClick(file: { name: string; path: string }) {
     if (file.name.endsWith('/')) {
-        if (!curDirectory.endsWith('/'))
-            curDirectory += '/';
-        curDirectory += file.name;
+        if (!curPath.endsWith('/'))
+            curPath += '/';
+        curPath += file.name;
         await updateFiles();
     } else {
         emit('file-selected', file.path);

@@ -41,6 +41,7 @@ export interface ReindexRequest {
 
 export interface ListFilesRequest {
     work_directory: string;
+    path?: string;
     filter: string;
 }
 

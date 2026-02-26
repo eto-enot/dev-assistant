@@ -26,8 +26,8 @@ const listFilesMock = {
     method: 'POST' as Method,
     response(req: any, res: ServerResponse) {
         let body: any[];
-        const dir: string = req.body.work_directory;
-        if (dir.indexOf('src') >= 0) {
+        const dir: string = req.body.path;
+        if (dir && dir.indexOf('src') >= 0) {
             body = [
                 { name: 'assets/', path: 'src/assets/', },
                 { name: 'additional.d.ts', path: 'src/additional.d.ts', },
