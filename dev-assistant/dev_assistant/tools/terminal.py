@@ -16,7 +16,7 @@ class RunTerminalCommandTool(FunctionTool):
             self._run_terminal_command, "run_terminal_command",
             "Run a terminal command in the current directory.\nThe shell is not stateful and will " +
             "not remember any previous commands. Choose terminal commands and scripts optimized for " +
-            f"{system} and shell {shell}. Usage Cost: 20"
+            f"{system}. The shell is {shell}. Usage Cost: 20"
         )
         super().__init__(self._run_terminal_command, tool_metadata)
 
@@ -46,7 +46,7 @@ class RunTerminalCommandTool(FunctionTool):
             
             system = platform.system()
             if system == 'Windows':
-                cmd = ["powershell", "-NoLogo", "-ExecutionPolicy", "Bypass", "-Command", "chcp 65001>nil;", command]
+                cmd = ["powershell", "-NoLogo", "-ExecutionPolicy", "Bypass", "-Command", f"chcp 65001>nil;cd '{work_dir}';", command]
             else:
                 cmd = ["/bin/bash", "-l", "-c", command]
 

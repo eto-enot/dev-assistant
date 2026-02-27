@@ -26,7 +26,7 @@ class ReadFileTool(FunctionTool):
             if not os.path.isfile(full_path):
                 return f"File '{path}' does not exist."
             
-            with open(full_path, 'rt') as f:
+            with open(full_path, 'rt', encoding='utf-8') as f:
                 content = f.read()
 
             tokens = Settings.tokenizer(content)

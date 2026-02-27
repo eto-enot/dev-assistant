@@ -39,7 +39,7 @@ class CreateFileTool(FunctionTool):
                 if not response.response:
                     return f"User rejected the file creation. File '{path}' was NOT created. " + \
                         "So just print provided file content to User and stop conversation."
-            with open(full_path, 'wt') as f:
+            with open(full_path, 'wt', encoding='utf-8') as f:
                 f.write(content)
             print('created!', full_path)
             return f"File '{path}' created successfully."
