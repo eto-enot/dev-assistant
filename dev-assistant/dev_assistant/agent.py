@@ -22,7 +22,7 @@ from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolOutput
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
-from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool
+from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool, RunTerminalCommandTool
 from model import ConfirmToolCallRequest, ListFilesRequest, ListFilesResponse, ListFilesResponseItem, SetProjectInfoRequest
 from config import DevAssistantConfig
 from llama_index.core.storage.chat_store.base_db import MessageStatus
@@ -121,16 +121,18 @@ Usage Cost: 50
             self.rag.engine,
             description=rag_descr
         )
+        calc_tool = CalculatorTool()
         read_file = ReadFileTool()
         create_file = CreateFileTool()
         find_file = FindFileTool()
+        run_terminal_cmd = RunTerminalCommandTool()
         # self.engine = index.as_chat_engine(streaming=True, similarity_top_k=2)
         # self.agent = FunctionAgent(
         #     tools=[mult, rag_tool],
         #     system_prompt="You are a helpful assistant that can perform calculations and search through documents to answer questions.",
         #     llm=Settings.llm
         # )
-        self.agent = ReActAgent(tools=[CalculatorTool(), rag_tool, read_file, create_file, find_file], verbose=True)
+        self.agent = ReActAgent(tools=[calc_tool, rag_tool, read_file, create_file, find_file, run_terminal_cmd], verbose=True)
         self.agent.formatter = ReActChatFormatter.from_defaults(
             system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
         self.agent.output_parser = ReActOutputParser2()
