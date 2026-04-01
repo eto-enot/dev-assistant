@@ -22,6 +22,7 @@ from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolOutput
 from llama_index.core.node_parser import SentenceSplitter
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
+from chunking import SourceCodeNodeParser
 from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool, RunTerminalCommandTool
 from model import ConfirmToolCallRequest, ListFilesRequest, ListFilesResponse, ListFilesResponseItem, SetProjectInfoRequest
 from config import DevAssistantConfig
@@ -97,10 +98,13 @@ class DevAssistantRag:
             files = [x.as_posix() for x in Path("data").rglob("*.cs")]
             reader = SimpleDirectoryReader(input_files=files)
             docs = reader.load_data()
-            splitter = SentenceSplitter(chunk_size=128, chunk_overlap=0)
-            index = VectorStoreIndex.from_documents(
-                documents=docs, storage_context=context,
-                transformations=[splitter], show_progress=True)        
+            #splitter = SentenceSplitter(chunk_size=128, chunk_overlap=0)
+            parser = SourceCodeNodeParser(chunk_size=1024)
+            nodes = parser(docs)
+            index = VectorStoreIndex(nodes, storage_context=context, show_progress=True)
+            # index = VectorStoreIndex.from_documents(
+            #     documents=docs, storage_context=context,
+            #     transformations=[splitter], show_progress=True)        
         return index.as_query_engine(similarity_top_k=5)
     
 
@@ -272,7 +276,7 @@ Usage Cost: 50
             full_path = os.path.join(work_dir, path)
             if not os.path.isfile(full_path):
                 continue
-            with open(full_path, 'rt') as f:
+            with open(full_path, 'rt', encoding='utf-8') as f:
                 content = f.read()
             tokens = Settings.tokenizer(content)
             token_count += len(tokens)
