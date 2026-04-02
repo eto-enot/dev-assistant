@@ -15,11 +15,13 @@ services:
     volumes:
       - ./vllm-cache:/root/.cache
       - ./etc/vllm_logging.json:/root/vllm_logging.json
-      - ./logs_llm:/root/logs
     environment:
-      - OTEL_SERVICE_NAME=vllm_llm
       - VLLM_LOGGING_CONFIG_PATH=/root/vllm_logging.json
       - LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/lib/x86_64-linux-gnu
+      - OTEL_SERVICE_NAME=vllm_llm
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_LOGS_EXPORTER=otlp
       # - VLLM_DEBUG_LOG_API_SERVER_RESPONSE=true
     command: >
       ${VLLM_LLM_MODEL}
@@ -56,11 +58,13 @@ services:
     volumes:
       - ./vllm-cache:/root/.cache
       - ./etc/vllm_logging.json:/root/vllm_logging.json
-      - ./logs_emb:/root/logs
     environment:
-      - OTEL_SERVICE_NAME=vllm_emb
       - VLLM_LOGGING_CONFIG_PATH=/root/vllm_logging.json
       # - VLLM_DEBUG_LOG_API_SERVER_RESPONSE=true
+      - OTEL_SERVICE_NAME=vllm_emb
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_LOGS_EXPORTER=otlp
     command: >
       ${VLLM_EMB_MODEL}
       -tp 1
@@ -141,8 +145,6 @@ services:
     command: --config=/etc/otel-collector-config.yaml
     volumes:
       - ./etc/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-      - ./logs_llm:/logs_llm
-      - ./logs_emb:/logs_emb
     ports:
       - "4317:4317"
       - "4318:4318"
