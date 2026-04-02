@@ -3,11 +3,7 @@ global:
   evaluation_interval: 30s
 
 scrape_configs:
-  - job_name: vllm_llm
+  - job_name: otlp
     static_configs:
       - targets:
-          - 'vllm_llm:8000'
-  - job_name: vllm_emb
-    static_configs:
-      - targets:
-          - 'vllm_emb:8000'
+          - 'otel-collector:8889'
