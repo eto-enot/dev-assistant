@@ -105,12 +105,10 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.9.1
-    ports:
-      - 9090:9090
     volumes:
       - ./etc/prometheus.yaml:/etc/prometheus/prometheus.yml
     networks:
-      - back_net
+      - observe_net
     depends_on:
       - otel-collector
 
@@ -125,37 +123,28 @@ services:
     ports:
       - 3000:3000
     networks:
-      - back_net
+      - observe_net
     depends_on:
       - prometheus
       - loki
 
   loki:
     image: grafana/loki:main-93650c0
-    ports:
-      - "3100:3100"
     volumes:
       - ./etc/loki-config.yaml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - back_net
+      - observe_net
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.149.0
     command: --config=/etc/otel-collector-config.yaml
     volumes:
       - ./etc/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports:
-      - "4317:4317"
-      - "4318:4318"
-      - "8889:8889"
     networks:
       - back_net
-    depends_on:
-      vllm_llm:
-        condition: service_healthy
-      vllm_emb:
-        condition: service_healthy
+      - observe_net
 
 networks:
   back_net:
+  observe_net:
