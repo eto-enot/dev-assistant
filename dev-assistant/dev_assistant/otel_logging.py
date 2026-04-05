@@ -28,6 +28,6 @@ def setup_otel_logging():
 
     handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 
-    logging.getLogger().setLevel(logging.NOTSET)
+    # logging.getLogger().setLevel(logging.NOTSET)
     logging.getLogger().addHandler(handler)
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
