@@ -1,6 +1,7 @@
 __pycache__/
 .env
 .venv/
+.vscode/
 pgdata/
 dev-assistant/data/
 dev-assistant/context/
