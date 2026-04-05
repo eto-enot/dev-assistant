@@ -1,4 +1,21 @@
 services:
+  redis:
+    image: redis:8.6.1-alpine
+    volumes:
+      - ./redis:/data
+    networks:
+      - back_net
+    ports:
+      - 6379:6379
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'redis-cli ping | grep PONG'"]
+      start_period: 30s
+      start_interval: 5s
+      interval: 60s
+      retries: 5
+    restart: unless-stopped
+  
   qdrant:
     image: qdrant/qdrant:v1.16
     restart: unless-stopped

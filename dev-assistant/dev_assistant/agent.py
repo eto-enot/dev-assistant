@@ -43,6 +43,7 @@ from llama_index.core.agent.react.types import (
     BaseReasoningStep,
     ResponseReasoningStep,
 )
+from celery_tasks import reindex_project_task
 
 logger = logging.getLogger("dev-assistant")
 
@@ -246,6 +247,7 @@ Usage Cost: 50
         yield ListFilesResponse(content=files)
 
     async def _reindex_project(self, request: ReindexProjectRequest):
+        reindex_project_task.delay(request.work_directory)
         yield ReindexProjectResponse()
         
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):

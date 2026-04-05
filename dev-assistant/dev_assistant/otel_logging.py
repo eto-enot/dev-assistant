@@ -10,6 +10,9 @@ from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
 
 def setup_otel_logging():
+    if any(filter(lambda x: isinstance(x, LoggingHandler), logging.getLogger().handlers)):
+        return
+    
     service_name = os.environ.get(ev.OTEL_SERVICE_NAME, 'dev-assistant')
     
     logger_provider = LoggerProvider(
