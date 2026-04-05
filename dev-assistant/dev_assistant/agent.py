@@ -1,8 +1,7 @@
 import json
 import re
-import typing
+import logging
 
-from fastapi.responses import StreamingResponse
 import httpx
 import os
 
@@ -43,6 +42,8 @@ from llama_index.core.agent.react.types import (
     BaseReasoningStep,
     ResponseReasoningStep,
 )
+
+logger = logging.getLogger("dev-assistant")
 
 class ReActOutputParser2(ReActOutputParser):
     def parse(self, output: str, is_streaming: bool = False) -> BaseReasoningStep:
@@ -110,6 +111,7 @@ class DevAssistantRag:
 
 class DevAssistantAgent:
     def __init__(self, rag: DevAssistantRag):
+        logger.debug('Initializing dev assistant agent')
         self.rag = rag
         # mult = FunctionTool.from_defaults(self.calculator)
         # rag_tool = FunctionTool.from_defaults(self.search_codebase)

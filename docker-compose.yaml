@@ -141,6 +141,9 @@ services:
     command: --config=/etc/otel-collector-config.yaml
     volumes:
       - ./etc/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - 4317:4317
+      - 4318:4318
     networks:
       - back_net
       - observe_net

@@ -11,6 +11,9 @@ dependencies = [
     "llama-index-llms-openai-like>=0.5.3",
     "llama-index-retrievers-bm25>=0.6.5",
     "llama-index-vector-stores-qdrant>=0.9.1",
+    "opentelemetry-api>=1.40.0",
+    "opentelemetry-exporter-otlp>=1.40.0",
+    "opentelemetry-sdk>=1.40.0",
     "qdrant-client>=1.16.2",
     "tree-sitter-language-pack>=0.13.0",
 ]

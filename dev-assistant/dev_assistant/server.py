@@ -19,13 +19,15 @@ from fastapi.responses import JSONResponse
 from fastapi import HTTPException, Request, Response
 from agent import DevAssistantAgent, DevAssistantRag
 from config import DevAssistantConfig
+from otel_logging import setup_otel_logging
 from starlette.middleware.cors import CORSMiddleware
 from litserve.utils import ResponseBufferItem
 from model import ConfirmToolCallRequest, ListFilesResponse, ListFilesResponseItem, SetProjectInfoRequest, ListFilesRequest, ChatCompletionChunkType
 import logging
 
-logger = logging.getLogger(__name__)
+setup_otel_logging()
 
+logger = logging.getLogger("dev-assistant")
 
 class LlamaIndexAPI(LitAPI):
     def __init__(self, config: DevAssistantConfig, **kwargs):
@@ -193,11 +195,9 @@ class OpenAISpecModels(OpenAISpec):
 
 
 if __name__ == "__main__":
+    logging.info("Starting dev assistant service")
+    
     dotenv.load_dotenv()
-
-    # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    # logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
-
     config = DevAssistantConfig.from_env()
     
     middlewares=[
