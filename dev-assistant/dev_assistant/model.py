@@ -27,3 +27,9 @@ class ListFilesResponse(BaseModel):
 
 class ChatCompletionChunkType(ChatCompletionChunk):
     type: str = ""
+
+class ReindexProjectRequest(BaseModel):
+    work_directory: str
+
+class ReindexProjectResponse(BaseModel):
+    pass

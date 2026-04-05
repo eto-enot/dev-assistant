@@ -38,7 +38,7 @@ async function onReindex() {
             work_directory: settings.value.currentDirectory,
         };
 
-        const response = await fetch('/reindex', {
+        const response = await fetch(settings.value.apiUrl + '/reindex', {
             method: 'POST',
             headers: {
                 "Accept": "application/json",
@@ -58,6 +58,10 @@ async function onReindex() {
     } catch (e) {
         console.error(e);
         btnReindexText.value = 'Error!';
+        setTimeout(() => {
+            btnReindexText.value = 'Reindex Project';
+            btnsDisabled.value = false;
+        }, 3000);
     }
 }
 

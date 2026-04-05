@@ -15,6 +15,7 @@ from llama_index.llms.openai_like import OpenAILike
 from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
 from llama_index.core.agent.workflow import AgentStream, FunctionAgent, ReActAgent, ToolCallResult, ToolCall, AgentOutput
 from llama_index.core.workflow import Context, InputRequiredEvent, HumanResponseEvent
+from numpy import isin
 from qdrant_client.models import CreateFieldIndex
 from workflows.events import StopEvent
 from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolOutput
@@ -23,7 +24,7 @@ from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from chunking import SourceCodeNodeParser
 from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool, RunTerminalCommandTool
-from model import ConfirmToolCallRequest, ListFilesRequest, ListFilesResponse, ListFilesResponseItem, SetProjectInfoRequest
+from model import ConfirmToolCallRequest, ListFilesRequest, ListFilesResponse, ListFilesResponseItem, ReindexProjectRequest, ReindexProjectResponse, SetProjectInfoRequest
 from config import DevAssistantConfig
 from llama_index.core.storage.chat_store.base_db import MessageStatus
 from llama_index.core.memory import (
@@ -216,6 +217,8 @@ Usage Cost: 50
             return self._confirm_tool_call(request)
         elif isinstance(request, ListFilesRequest):
             return self._list_files(request)
+        elif isinstance(request, ReindexProjectRequest):
+            return self._reindex_project(request)
         else:
             raise TypeError('Unsupported request type: ' + str(type(request)))
         
@@ -241,6 +244,9 @@ Usage Cost: 50
             files.append(ListFilesResponseItem(name=name, path=path))
 
         yield ListFilesResponse(content=files)
+
+    async def _reindex_project(self, request: ReindexProjectRequest):
+        yield ReindexProjectResponse()
         
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
         if request.session_id in self.contexts:

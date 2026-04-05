@@ -22,7 +22,13 @@ from config import DevAssistantConfig
 from otel_logging import setup_otel_logging
 from starlette.middleware.cors import CORSMiddleware
 from litserve.utils import ResponseBufferItem
-from model import ConfirmToolCallRequest, ListFilesResponse, ListFilesResponseItem, SetProjectInfoRequest, ListFilesRequest, ChatCompletionChunkType
+from model import (
+    ConfirmToolCallRequest,
+    ListFilesResponse,
+    ReindexProjectResponse,
+    SetProjectInfoRequest, ListFilesRequest, ChatCompletionChunkType,
+    ReindexProjectRequest,
+)
 import logging
 
 setup_otel_logging()
@@ -85,6 +91,7 @@ class OpenAISpecModels(OpenAISpec):
         self.add_endpoint('/set-project-info', self._set_project_info, ["POST"])
         self.add_endpoint('/confirm-tool-call', self._confirm_tool_call, ["POST"])
         self.add_endpoint('/list-files', self._list_files, ["POST"])
+        self.add_endpoint('/reindex', self._reindex_project, ["POST"])
         super().pre_setup(lit_api)
 
     async def models(self, request: Request):
@@ -95,10 +102,9 @@ class OpenAISpecModels(OpenAISpec):
         return Response(status_code=200)
     
     def populate_context(self, context, request):
-        ignore = (SetProjectInfoRequest, ConfirmToolCallRequest, ListFilesRequest)
-        if isinstance(request, ignore):
-            return
-        super().populate_context(context, request)
+        ignore = (SetProjectInfoRequest, ConfirmToolCallRequest, ListFilesRequest, ReindexProjectRequest)
+        if not isinstance(request, ignore):
+            super().populate_context(context, request)
 
     async def streaming_completion(self, request: ChatCompletionRequest, pipe_responses: list):
         try:
@@ -154,7 +160,8 @@ class OpenAISpecModels(OpenAISpec):
             return
         
     def _encode_response(self, output):
-        if isinstance(output, ListFilesResponse):
+        ignore = (ListFilesResponse, ReindexProjectResponse)
+        if isinstance(output, ignore):
             return output
         return super()._encode_response(output)
         
@@ -174,7 +181,16 @@ class OpenAISpecModels(OpenAISpec):
                 raise response
             elif status == LitAPIStatus.ERROR:
                 raise HTTPException(status_code=500)
-            
+            return Response(response, status_code=200)
+    
+    async def _reindex_project(self, request: ReindexProjectRequest):
+        uid, event, queue = self._put_request_to_queue(request)
+        data = self.data_streamer(queue, event, send_status=True)
+        async for response, status in data:
+            if status == LitAPIStatus.ERROR and isinstance(response, HTTPException):
+                raise response
+            elif status == LitAPIStatus.ERROR:
+                raise HTTPException(status_code=500)
             return Response(response, status_code=200)
     
     def _put_request_to_queue(self, request: BaseModel):
