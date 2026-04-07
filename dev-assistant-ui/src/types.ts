@@ -12,6 +12,12 @@ export interface HistoryChat {
     messages: HistoryMessage[];
 }
 
+export interface HistoryListItem {
+    id: string;
+    active: boolean;
+    title: string;
+}
+
 export interface Conversations {
     [id: string]: HistoryChat;
 }

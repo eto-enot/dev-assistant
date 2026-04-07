@@ -1,18 +1,13 @@
 <script setup lang="ts">
 import { onMounted, provide, ref, useTemplateRef } from 'vue';
 import { generateId, processStreamResponse, getDefaultSettings, getOS } from './utils';
-import type { ConfirmToolCallRequest, Conversations, Role, SetProjectInfoRequest, Settings } from './types';
+import type { ConfirmToolCallRequest, Conversations, HistoryListItem, Role, SetProjectInfoRequest, Settings } from './types';
 import Prompt from './Prompt.vue';
 import Messages from './Messages.vue';
 import SettingsDialog from './Settings.vue';
 import { Message } from './chat';
 import { ErrorMessageUpdateEvent, type MessageUpdateEvent } from './events';
-
-interface HistoryListItem {
-    id: string;
-    active: boolean;
-    title: string;
-}
+import HistoryList from './HistoryList.vue';
 
 const settings = ref(<Settings>JSON.parse(sessionStorage.getItem('settings') ?? 'null') || getDefaultSettings());
 const historyList = ref<HistoryListItem[]>([]);
@@ -40,9 +35,6 @@ onMounted(async function () {
     } else {
         initializeCopyButtons();
     }
-
-    // Initialize highlight.js
-    //hljs.highlightAll();
 });
 
 // Load conversations from localStorage
@@ -94,11 +86,6 @@ async function setProjectInfo(sessionId: string) {
 
 // Set active conversation
 async function setActiveConversation(id: string) {
-    // Update active state in history list
-    historyList.value.forEach(item => {
-        item.active = item.id === id;
-    });
-
     currentConversationId = id;
     displayConversation(id);
     await setProjectInfo(id);
@@ -131,14 +118,13 @@ function displayConversation(id: string) {
 }
 
 // Start a new chat
-async function startNewChat() {
-    currentConversationId = generateId();
+async function startNewChat(id: string) {
+    currentConversationId = id;
     conversations[currentConversationId] = {
         id: currentConversationId,
         timestamp: Date.now(),
         messages: []
     };
-    historyList.value.unshift({ id: currentConversationId, title: 'New Conversation', active: true });
     await setActiveConversation(currentConversationId);
     initializeCopyButtons();
 }
@@ -307,15 +293,11 @@ async function sendMessage(message: string) {
 }
 
 function removeConversation(item: HistoryListItem) {
-    const idx = historyList.value.findIndex(x => x.id === item.id);
-    if (idx >= 0) {
-        historyList.value.splice(idx, 1);
-        delete conversations[item.id];
-        sessionStorage.setItem('conversations', JSON.stringify(conversations));
-        loadConversations();
-        if (item.active) {
-            messages.value.splice(0, messages.value.length);
-        }
+    delete conversations[item.id];
+    sessionStorage.setItem('conversations', JSON.stringify(conversations));
+    loadConversations();
+    if (item.active) {
+        messages.value.splice(0, messages.value.length);
     }
 }
 
@@ -358,23 +340,8 @@ function onToolConfirm(isAllowed: boolean) {
 
     <div class="container">
         <div class="sidebar">
-            <button class="new-chat-btn" @click="startNewChat">
-                <i class="fas fa-plus"></i>
-                New chat
-            </button>
-            <!-- <div class="history-title">Today</div> -->
-            <ul class="history-list" v-if="!historyList.length">
-                <li class="history-item">No conversations yet</li>
-            </ul>
-            <ul class="history-list" v-else>
-                <li class="history-item" v-for="item of historyList" :key="item.id"
-                    @click="() => setActiveConversation(item.id)" :class="{ active: item.active }">
-                    <span style="overflow: hidden; flex-grow: 1">{{ item.title }}</span>
-                    <span @click="() => removeConversation(item)">
-                        <i class="fas fa-xmark" />
-                    </span>
-                </li>
-            </ul>
+            <HistoryList v-bind="historyList" @new-chat="startNewChat" @item-removed="removeConversation"
+                @item-selected="setActiveConversation"></HistoryList>
         </div>
 
         <div class="chat-container">
