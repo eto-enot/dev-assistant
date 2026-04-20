@@ -54,7 +54,7 @@ function onConfirm(message: Message, isAllowed: boolean) {
                     <div v-else v-html="msg.contentHtml" :class="{ 'error-message': msg.isError }"></div>
                 </div>
                 <div class="tool-confirm-content" v-if="msg.toolConfirmRequested">
-                    <div class="tool-confirm-message">{{ msg.toolConfirmMessage }}</div>
+                    <div class="tool-confirm-message" v-html="msg.toolConfirmMessage"></div>
                     <div class="tool-confirm-buttons">
                         <button class="btn btn-tool-confirm-yes" @click="onConfirm(msg, true)">Yes</button>
                         <button class="btn btn-tool-confirm-no" @click="onConfirm(msg, false)">No</button>
@@ -101,6 +101,7 @@ function onConfirm(message: Message, isAllowed: boolean) {
 .tool-confirm-message {
     flex-grow: 1;
     white-space: pre-wrap;
+    padding: 6px 2px;
 }
 
 .btn-tool-confirm-yes {

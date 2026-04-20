@@ -27,7 +27,7 @@ class ReadFileTool(FunctionTool):
                 return f"File '{path}' does not exist."
             
             with open(full_path, 'rt', encoding='utf-8') as f:
-                content = f.read()
+                content = f.read().replace('\r\n', '\n')
 
             tokens = Settings.tokenizer(content)
             if len(tokens) > Settings.context_window // 2:

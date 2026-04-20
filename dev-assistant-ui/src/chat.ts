@@ -64,7 +64,7 @@ export class Message {
                 this.reasoning += '\n' + event.content + '\n';
         } else if (event instanceof ToolCallConfirmMessageUpdateEvent) {
             this.toolConfirmRequested = true;
-            this.toolConfirmMessage = event.content;
+            this.toolConfirmMessage = marked.parse(event.content) as string;
         } else {
             throw new Error('Unknown event type: ' + event.constructor);
         }

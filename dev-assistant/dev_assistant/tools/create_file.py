@@ -4,13 +4,20 @@ from llama_index.core.tools import FunctionTool
 from llama_index.core.workflow import Context, InputRequiredEvent, HumanResponseEvent
 from workflows.runtime.types.results import WaitingForEvent
 from .utils import get_tool_metadata
+
+
+TOOL_DESCRIPTION = "To write (create) a file into the local filesystem, use the `create_file` tool. \
+This tool will overwrite the existing file if there is one at the provided path. \
+Prefer the `edit_file` tool for modifying existing files - it only sends the diff. \
+Only use this tool to create new files or for complete rewrites. \
+\nUsage Cost: 20"
         
 
 class CreateFileTool(FunctionTool):
     def __init__(self):
         tool_metadata = get_tool_metadata(
             self._create_file, "create_file",
-            "To create (write) a file with given file name or path and content string, use the create_file tool. Usage Cost: 20"
+            TOOL_DESCRIPTION
         )
         super().__init__(self._create_file, tool_metadata)
 

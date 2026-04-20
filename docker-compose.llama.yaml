@@ -9,7 +9,7 @@ services:
       - "6334:6334"
       
   vllm_llm:
-    image: 'ghcr.io/ggml-org/llama.cpp:server-cuda12-b8172'
+    image: 'ghcr.io/ggml-org/llama.cpp:server-cuda12-b8840'
     runtime: nvidia
     ipc: host
     volumes:
@@ -18,7 +18,7 @@ services:
       -m ${LLAMA_LLM_MODEL}
       --jinja
       -fa 1 -ncmoe 30
-      -c 32768
+      -c 65536
       --temp 1.0
       --min-p 0.0 --top-p 0.95 --top-k 20
       --presence_penalty 1.5
@@ -27,6 +27,7 @@ services:
       --host 0.0.0.0 --port 8000
       --metrics
       --no-webui
+      --offline
     networks:
       - back_net
     healthcheck:
@@ -44,7 +45,7 @@ services:
             capabilities: [gpu]
 
   vllm_emb:
-    image: 'ghcr.io/ggml-org/llama.cpp:server-cuda12-b8172'
+    image: 'ghcr.io/ggml-org/llama.cpp:server-cuda12-b8840'
     runtime: nvidia
     ipc: host
     volumes:
@@ -57,6 +58,7 @@ services:
       --embedding
       --metrics
       --no-webui
+      --offline
     networks:
       - back_net
     healthcheck:
