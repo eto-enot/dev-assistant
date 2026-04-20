@@ -4,6 +4,7 @@ from .create_file import CreateFileTool
 from .list_files import ListFilesTool
 from .find_file import FindFileTool
 from .terminal import RunTerminalCommandTool
+from .edit_file import EditFileTool
 
 __all__ = [
     "CalculatorTool",
@@ -12,4 +13,5 @@ __all__ = [
     "ListFilesTool",
     "FindFileTool",
     "RunTerminalCommandTool",
+    "EditFileTool",
 ]
