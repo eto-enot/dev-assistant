@@ -35,42 +35,15 @@ class LlamaIndexAPI(LitAPI):
         self.config = config
 
     def setup(self, device):
+        self.config.init_models()
         rag = DevAssistantRag(self.config)
         rag.init_engine()
         self.agent = DevAssistantAgent(rag)
         pass
 
     async def predict(self, x, **kwargs):
-        # if isinstance(x, ListFilesRequest):
-        #     yield self._list_files(x)
         async for token in self.agent.stream(x):
             yield token
-
-    # async def encode_response(self, output, **kwargs):
-    #     async for out in output:
-    #         yield ChatMessage(role=out['role'], content=out['content'])
-
-    # def _list_files(self, request: ListFilesRequest):
-    #     if not request.path:
-    #         request.path = '.'
-
-    #     abs_path = (Path(request.work_directory) / Path(request.path)).resolve()
-
-    #     if not abs_path.exists() or not abs_path.is_dir():
-    #         return []
-
-    #     files = []
-    #     for item in abs_path.iterdir():
-    #         name = item.name
-    #         if request.filter.upper() not in name.upper():
-    #             continue
-    #         if item.is_dir():
-    #             name += '/'
-    #         path = str(item.relative_to(request.work_directory))
-    #         path = path.replace('\\', '/')
-    #         files.append(ListFilesResponseItem(name=name, path=path))
-
-    #     return files
 
 
 class OpenAISpecModels(OpenAISpec):

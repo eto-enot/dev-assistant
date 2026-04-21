@@ -16,6 +16,7 @@ class DevAssistantConfig:
         self.qdrant_url = qdrant_url
         self.proxy = proxy
 
+    def init_models(self):
         client = httpx.Client(proxy=self.proxy)
         aclient = httpx.AsyncClient(proxy=self.proxy)
 

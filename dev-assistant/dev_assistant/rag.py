@@ -21,7 +21,7 @@ class DevAssistantRag:
         self.engine = None
 
     def init_engine(self):
-        index = self.create_index("data", )
+        index = self.create_index("data")
         self.engine = index.as_query_engine(similarity_top_k=5)
 
     def create_index(self, work_dir: str, filter: str = "*"):
