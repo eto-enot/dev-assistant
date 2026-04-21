@@ -14,7 +14,7 @@ the provided path. Prefer the `edit_file` tool for modifying existing files - it
 only sends the diff. Only use this tool to create new files or for complete rewrites.
 Usage Cost: 20"""
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dev-assistant.tools")
 
 
 class CreateFileTool(FunctionTool):

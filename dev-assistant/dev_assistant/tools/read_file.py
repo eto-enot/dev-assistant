@@ -13,8 +13,7 @@ The user can explicitly provide the contents of some files in which case there \
 is no need to call this tool.
 Usage Cost: 10"""
 
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dev-assistant.tools")
 
 
 class ReadFileTool(FunctionTool):

@@ -14,7 +14,7 @@ and will not remember any previous commands. Choose terminal commands and script
 {system}. The shell is {shell}.
 Usage Cost: 20"""
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dev-assistant.tools")
 
 
 class RunTerminalCommandTool(FunctionTool):

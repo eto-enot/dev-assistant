@@ -1,68 +1,71 @@
 import json
+import logging
+import os
 import platform
 import re
-import logging
-
-
-import os
-
-from pathlib import Path
-from typing import Annotated, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Annotated
 
-from litserve.specs.openai import ChatCompletionRequest, TextContent
+from celery_tasks import reindex_project_task
+from litserve.specs.openai import ChatCompletionRequest
 from llama_index.core import Settings
-from llama_index.llms.openai_like import OpenAILike
+from llama_index.core.agent.react.output_parser import ReActOutputParser
+from llama_index.core.agent.react.types import BaseReasoningStep, ResponseReasoningStep
+from llama_index.core.agent.workflow import (
+    AgentOutput,
+    AgentStream,
+    FunctionAgent,
+    ToolCall,
+    ToolCallResult,
+)
 from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
-from llama_index.core.agent.workflow import AgentStream, FunctionAgent, ReActAgent, ToolCallResult, ToolCall, AgentOutput
-from llama_index.core.workflow import Context, InputRequiredEvent, HumanResponseEvent
-from numpy import isin
-from qdrant_client.models import CreateFieldIndex
-from workflows.events import StopEvent
-from llama_index.core.tools import FunctionTool, QueryEngineTool, ToolOutput
-from llama_index.core.node_parser import SentenceSplitter
-from qdrant_client import AsyncQdrantClient, QdrantClient
-from llama_index.vector_stores.qdrant import QdrantVectorStore
-from chunking import SourceCodeNodeParser
-from tools import CalculatorTool, CreateFileTool, FindFileTool, ReadFileTool, RunTerminalCommandTool, EditFileTool
-from model import ConfirmToolCallRequest, ListFilesRequest, ListFilesResponse, ListFilesResponseItem, ReindexProjectRequest, ReindexProjectResponse, SetProjectInfoRequest
-from config import DevAssistantConfig
-from llama_index.core.storage.chat_store.base_db import MessageStatus
+from llama_index.core.base.response.schema import Response
 from llama_index.core.memory import (
+    FactExtractionMemoryBlock,
+    InsertMethod,
     Memory,
     StaticMemoryBlock,
-    FactExtractionMemoryBlock,
-    VectorMemoryBlock,
-    InsertMethod,
 )
-from llama_index.core.base.response.schema import Response
-from llama_index.core.agent.react.formatter import ReActChatFormatter
-from llama_index.core.prompts import RichPromptTemplate
-from llama_index.core.agent.react.output_parser import ReActOutputParser
-from llama_index.core.agent.react.types import (
-    ActionReasoningStep,
-    BaseReasoningStep,
-    ResponseReasoningStep,
+from llama_index.core.tools import QueryEngineTool
+from llama_index.core.workflow import Context, HumanResponseEvent, InputRequiredEvent
+from model import (
+    ConfirmToolCallRequest,
+    ListFilesRequest,
+    ListFilesResponse,
+    ListFilesResponseItem,
+    ReindexProjectRequest,
+    ReindexProjectResponse,
+    SetProjectInfoRequest,
 )
-from celery_tasks import reindex_project_task
 from rag import DevAssistantRag
+from tools import (
+    CalculatorTool,
+    CreateFileTool,
+    EditFileTool,
+    FindFileTool,
+    ReadFileTool,
+    RunTerminalCommandTool,
+)
+from workflows.events import StopEvent
+
 
 logger = logging.getLogger("dev-assistant")
+
 
 class ReActOutputParser2(ReActOutputParser):
     def parse(self, output: str, is_streaming: bool = False) -> BaseReasoningStep:
         try:
             return super().parse(output, is_streaming)
         except ValueError as e:
-            if 'Could not extract final answer' not in str(e):
+            if "Could not extract final answer" not in str(e):
                 raise e
             answer = self._try_parse_answer_only(output)
             thought = "(Implicit) I can answer without any more tools!"
             return ResponseReasoningStep(
                 thought=thought, response=answer, is_streaming=is_streaming
             )
-            
-    
+
     def _try_parse_answer_only(self, input_text: str) -> str:
         pattern = r"\s*Answer:(.*?)(?:$)"
 
@@ -77,7 +80,7 @@ class ReActOutputParser2(ReActOutputParser):
 
 class DevAssistantAgent:
     def __init__(self, rag: DevAssistantRag):
-        logger.debug('Initializing dev assistant agent')
+        logger.debug("Initializing dev assistant agent")
         self.rag = rag
         # mult = FunctionTool.from_defaults(self.calculator)
         # rag_tool = FunctionTool.from_defaults(self.search_codebase)
@@ -88,10 +91,7 @@ class DevAssistantAgent:
 Do NOT use this tool with files in working directory. Do NOT call this tool unless the user's question relates to the aspects listed above.
 Usage Cost: 100
 """
-        rag_tool = QueryEngineTool.from_defaults(
-            self.rag.engine,
-            description=rag_descr
-        )
+        rag_tool = QueryEngineTool.from_defaults(self.rag.engine, description=rag_descr)
         calc_tool = CalculatorTool()
         read_file = ReadFileTool()
         create_file = CreateFileTool()
@@ -104,9 +104,19 @@ Usage Cost: 100
         #     system_prompt="You are a helpful assistant that can perform calculations and search through documents to answer questions.",
         #     llm=Settings.llm
         # )
-        #self.agent = ReActAgent(tools=[calc_tool, rag_tool, read_file, create_file, find_file, run_terminal_cmd, edit_file], verbose=True)
-        tools = [calc_tool, rag_tool, read_file, create_file, find_file, run_terminal_cmd, edit_file]
-        self.agent = FunctionAgent(tools=tools, system_prompt=self._get_system_prompt(), verbose=True)
+        # self.agent = ReActAgent(tools=[calc_tool, rag_tool, read_file, create_file, find_file, run_terminal_cmd, edit_file], verbose=True)
+        tools = [
+            calc_tool,
+            rag_tool,
+            read_file,
+            create_file,
+            find_file,
+            run_terminal_cmd,
+            edit_file,
+        ]
+        self.agent = FunctionAgent(
+            tools=tools, system_prompt=self._get_system_prompt(), verbose=True
+        )
         # self.agent.formatter = ReActChatFormatter.from_defaults(
         #     system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
         # self.agent.output_parser = ReActOutputParser2()
@@ -115,10 +125,13 @@ Usage Cost: 100
         self.memory_slots: dict[str, Memory] = dict()
 
     def _get_system_prompt(self):
-        with (Path(__file__).parents[0] / Path("system_prompt_template.md")).open("r") as f:
+        with (Path(__file__).parents[0] / Path("system_prompt_template.md")).open(
+            "r"
+        ) as f:
             prompt_str = f.read()
-        return prompt_str.format(os=platform.platform(), datetime=datetime.today().strftime('%Y-%m-%d'))
-
+        return prompt_str.format(
+            os=platform.platform(), datetime=datetime.today().strftime("%Y-%m-%d")
+        )
 
     def _create_static_memory_block(self, core_info: str):
         return StaticMemoryBlock(
@@ -158,23 +171,25 @@ Usage Cost: 100
             # memory_blocks_template=MEMORY_BLOCKS_TEMPLATE
         )
         return memory
-    
-    async def search_codebase(self, ctx: Context, input: Annotated[str, 'What to find']):
+
+    async def search_codebase(
+        self, ctx: Context, input: Annotated[str, "What to find"]
+    ):
         """Use it for searching the code base, answer questions about code behavior, and code description."""
         question = "Assistant wants to call the tool: search\nAre you sure you want to proceed?"
         response = await ctx.wait_for_event(
             HumanResponseEvent,
             waiter_id=question,
             waiter_event=InputRequiredEvent(
-                prefix=question, # type: ignore
+                prefix=question,  # type: ignore
             ),
         )
         if response.response:
             query_result = await self.rag.engine.aquery(input)
-            return query_result.response # type: ignore
+            return query_result.response  # type: ignore
         else:
-            return 'User declined tool calling. Please choose another tool or answer without using a tool.'
-    
+            return "User declined tool calling. Please choose another tool or answer without using a tool."
+
     def stream(self, request):
         if isinstance(request, ChatCompletionRequest):
             return self._stream_chat_message(request)
@@ -187,27 +202,27 @@ Usage Cost: 100
         elif isinstance(request, ReindexProjectRequest):
             return self._reindex_project(request)
         else:
-            raise TypeError('Unsupported request type: ' + str(type(request)))
-        
+            raise TypeError("Unsupported request type: " + str(type(request)))
+
     async def _list_files(self, request: ListFilesRequest):
         if not request.path:
-            request.path = '.'
-        
+            request.path = "."
+
         abs_path = (Path(request.work_directory) / Path(request.path)).resolve()
-        
+
         if not abs_path.exists() or not abs_path.is_dir():
             yield ListFilesResponse(content=[])
             return
-        
+
         files = []
         for item in abs_path.iterdir():
             name = item.name
             if request.filter.upper() not in name.upper():
                 continue
             if item.is_dir():
-                name += '/'
+                name += "/"
             path = str(item.relative_to(request.work_directory))
-            path = path.replace('\\', '/')
+            path = path.replace("\\", "/")
             files.append(ListFilesResponseItem(name=name, path=path))
 
         yield ListFilesResponse(content=files)
@@ -215,52 +230,60 @@ Usage Cost: 100
     async def _reindex_project(self, request: ReindexProjectRequest):
         reindex_project_task.delay(request.work_directory)
         yield ReindexProjectResponse()
-        
+
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
         if request.session_id in self.contexts:
             ctx = self.contexts[request.session_id]
-            ctx.send_event(HumanResponseEvent(
-                response=request.call_allowed, # type: ignore
-                session_id=request.session_id # type: ignore
-            ))
-        if False: yield
-        
+            ctx.send_event(
+                HumanResponseEvent(
+                    response=request.call_allowed,  # type: ignore
+                    session_id=request.session_id,  # type: ignore
+                )
+            )
+        if False:
+            yield
+
     async def _set_project_info(self, request: SetProjectInfoRequest):
         self.work_dirs[request.session_id] = request.work_directory
         if not request.session_id in self.memory_slots:
-            self.memory_slots[request.session_id] = self._create_memory(request.session_id, request.core_info)
+            self.memory_slots[request.session_id] = self._create_memory(
+                request.session_id, request.core_info
+            )
         else:
             memory = self.memory_slots[request.session_id]
             info = request.core_info
             if request.os:
                 info += f"\nTarget OS: {request.os}"
             memory.memory_blocks[0] = self._create_static_memory_block(info)
-        if False: yield
+        if False:
+            yield
 
     async def _process_message(self, ctx: Context | None, message):
         if not isinstance(message, str):
             raise NotImplementedError()
         if not ctx:
             return message
-        work_dir = await ctx.store.get('work_dir', None)
+        work_dir = await ctx.store.get("work_dir", None)
         if not work_dir:
             return message
-        files = re.findall(r'(?:^|\s)@([^\s]+)', message)
+        files = re.findall(r"(?:^|\s)@([^\s]+)", message)
         token_count = 0
-        message = re.sub(r'(?:^|\s)(@[^\s]+)', '', message)
+        message = re.sub(r"(?:^|\s)(@[^\s]+)", "", message)
         for path in files:
             full_path = os.path.join(work_dir, path)
             if not os.path.isfile(full_path):
                 continue
-            with open(full_path, 'rt', encoding='utf-8') as f:
+            with open(full_path, "rt", encoding="utf-8") as f:
                 content = f.read()
             tokens = Settings.tokenizer(content)
             token_count += len(tokens)
             if token_count > Settings.context_window // 2:
                 break
-            message = f"Content of file '{path}' provided by the User:\n```{content}\n```\n" + message
+            message = (
+                f"Content of file '{path}' provided by the User:\n```{content}\n```\n"
+                + message
+            )
         return message
-
 
     async def _stream_chat_message(self, request: ChatCompletionRequest):
         ctx = None
@@ -271,11 +294,14 @@ Usage Cost: 100
                 ctx = Context(self.agent)
                 self.contexts[request.user] = ctx
             if request.user in self.work_dirs:
-                await ctx.store.set('work_dir', self.work_dirs[request.user])
-                await ctx.store.set('session_id', request.user)
-        
+                await ctx.store.set("work_dir", self.work_dirs[request.user])
+                await ctx.store.set("session_id", request.user)
+
         messages = [
-            ChatMessage(content=await self._process_message(ctx, message.content), role=MessageRole(message.role))
+            ChatMessage(
+                content=await self._process_message(ctx, message.content),
+                role=MessageRole(message.role),
+            )
             for message in request.messages
         ]
 
@@ -286,31 +312,69 @@ Usage Cost: 100
         else:
             history = messages[:-1]
 
-        handler = self.agent.run(messages[-1].content, ctx=ctx, memory=memory, chat_history=history)
+        handler = self.agent.run(
+            messages[-1].content, ctx=ctx, memory=memory, chat_history=history
+        )
         async for event in handler.stream_events():
             # print(type(event), event)
             # print()
             if isinstance(event, AgentStream):
-                yield {"type": "reasoning", "role": MessageRole.ASSISTANT, "content": event.delta}
+                yield {
+                    "type": "reasoning",
+                    "role": MessageRole.ASSISTANT,
+                    "content": event.delta,
+                }
             elif isinstance(event, ToolCall):
-                yield {"type": "tool_call", "role": MessageRole.ASSISTANT, "content": "", "tool_calls": [{"id": event.tool_id, "function": {"name": event.tool_name, "arguments": json.dumps(event.tool_kwargs)}, "type": "function"}]}
+                yield {
+                    "type": "tool_call",
+                    "role": MessageRole.ASSISTANT,
+                    "content": "",
+                    "tool_calls": [
+                        {
+                            "id": event.tool_id,
+                            "function": {
+                                "name": event.tool_name,
+                                "arguments": json.dumps(event.tool_kwargs),
+                            },
+                            "type": "function",
+                        }
+                    ],
+                }
             elif isinstance(event, ToolCallResult):
-                content = ''
+                content = ""
                 output = event.tool_output.raw_output
                 if isinstance(output, Response):
                     content = output.response
                 else:
                     content = str(output)
-                yield {"type": "tool_call_result", "role": MessageRole.TOOL, "content": content, "tool_calls": [{"id": event.tool_id, "function": {"name": event.tool_name, "arguments": json.dumps(event.tool_kwargs)}, "type": "function"}]}
+                yield {
+                    "type": "tool_call_result",
+                    "role": MessageRole.TOOL,
+                    "content": content,
+                    "tool_calls": [
+                        {
+                            "id": event.tool_id,
+                            "function": {
+                                "name": event.tool_name,
+                                "arguments": json.dumps(event.tool_kwargs),
+                            },
+                            "type": "function",
+                        }
+                    ],
+                }
             elif isinstance(event, StopEvent):
-                content = ''
+                content = ""
                 if isinstance(event.result, AgentOutput):
                     content = event.result.response.content
                 else:
                     content = str(event.result)
                 yield {"type": "answer", "role": "assistant", "content": content}
             elif isinstance(event, InputRequiredEvent):
-                yield {"type": "tool_call_confirm", "role": MessageRole.TOOL, "content": event.prefix}
+                yield {
+                    "type": "tool_call_confirm",
+                    "role": MessageRole.TOOL,
+                    "content": event.prefix,
+                }
             # if isinstance(event, AgentStream):
             #     last_event = event
             #     if start_output:

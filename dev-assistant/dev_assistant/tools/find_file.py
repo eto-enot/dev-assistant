@@ -10,7 +10,7 @@ from .utils import get_tool_metadata
 TOOL_DESCRIPTION = "Use this tool to find a file using its name or glob \
 pattern. After that you can read file content with read_file tool. Usage cost: 10"
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dev-assistant.tools")
 
 
 class FindFileTool(FunctionTool):

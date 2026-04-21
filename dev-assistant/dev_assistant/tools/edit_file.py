@@ -24,7 +24,7 @@ instance of `old_string`.
 if you want to rename a variable for instance.
 Usage Cost: 20"""
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dev-assistant.tools")
 
 
 def _normalize_quotes(s: str):

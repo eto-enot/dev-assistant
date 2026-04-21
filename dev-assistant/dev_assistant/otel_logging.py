@@ -1,28 +1,34 @@
+import logging
 import os
 import sys
-import logging
 
-import opentelemetry.sdk.resources as res
 import opentelemetry.sdk.environment_variables as ev
+import opentelemetry.sdk.resources as res
 from opentelemetry._logs import set_logger_provider
+from opentelemetry.exporter.otlp.proto.grpc._log_exporter import \
+    OTLPLogExporter
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
 
+
 def setup_otel_logging():
-    if any(filter(lambda x: isinstance(x, LoggingHandler), logging.getLogger().handlers)):
+    if any(
+        filter(lambda x: isinstance(x, LoggingHandler), logging.getLogger().handlers)
+    ):
         return
-    
-    service_name = os.environ.get(ev.OTEL_SERVICE_NAME, 'dev-assistant')
-    
+
+    service_name = os.environ.get(ev.OTEL_SERVICE_NAME, "dev-assistant")
+
     logger_provider = LoggerProvider(
-        resource=res.Resource.create({
-            res.SERVICE_NAME: service_name,
-        }),
+        resource=res.Resource.create(
+            {
+                res.SERVICE_NAME: service_name,
+            }
+        ),
     )
 
     set_logger_provider(logger_provider)
-    
+
     exporter = OTLPLogExporter(insecure=True)
     logger_provider.add_log_record_processor(SimpleLogRecordProcessor(exporter))
 

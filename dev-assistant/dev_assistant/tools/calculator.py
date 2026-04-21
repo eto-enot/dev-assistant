@@ -5,7 +5,7 @@ from llama_index.core.tools import FunctionTool
 
 from .utils import get_tool_metadata
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dev-assistant.tools")
 
 
 class CalculatorTool(FunctionTool):

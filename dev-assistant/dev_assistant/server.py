@@ -1,47 +1,42 @@
 import asyncio
-from collections import deque
-from collections.abc import Iterator
 import json
-from pathlib import Path
+import logging
 import time
 import uuid
+from collections import deque
 
-from litserve import LitServer, LitAPI, OpenAISpec
-from litserve.specs.openai import ChatCompletionChunk, ChatCompletionStreamingChoice, ChatMessage, ChatMessageWithUsage, ChatCompletionRequest, ChoiceDelta, UsageInfo, _openai_format_error
-from litserve.utils import LitAPIStatus, ResponseBufferItem, azip
-from litserve.callbacks.base import EventTypes
-from pydantic import BaseModel
-import requests
-import requests
 import dotenv
-
-from fastapi.responses import JSONResponse
-from fastapi import HTTPException, Request, Response
+import requests
 from agent import DevAssistantAgent, DevAssistantRag
 from config import DevAssistantConfig
+from fastapi import HTTPException, Request, Response
+from fastapi.responses import JSONResponse
+from litserve import LitAPI, LitServer, OpenAISpec
+from litserve.callbacks.base import EventTypes
+from litserve.specs.openai import (ChatCompletionRequest,
+                                   ChatCompletionStreamingChoice, ChoiceDelta,
+                                   UsageInfo, _openai_format_error)
+from litserve.utils import LitAPIStatus, ResponseBufferItem, azip
+from model import (ChatCompletionChunkType, ConfirmToolCallRequest,
+                   ListFilesRequest, ListFilesResponse, ReindexProjectRequest,
+                   ReindexProjectResponse, SetProjectInfoRequest)
 from otel_logging import setup_otel_logging
+from pydantic import BaseModel
 from starlette.middleware.cors import CORSMiddleware
-from litserve.utils import ResponseBufferItem
-from model import (
-    ConfirmToolCallRequest,
-    ListFilesResponse,
-    ReindexProjectResponse,
-    SetProjectInfoRequest, ListFilesRequest, ChatCompletionChunkType,
-    ReindexProjectRequest,
-)
-import logging
+
 
 setup_otel_logging()
-
 logger = logging.getLogger("dev-assistant")
+
 
 class LlamaIndexAPI(LitAPI):
     def __init__(self, config: DevAssistantConfig, **kwargs):
         super().__init__(**kwargs)
         self.config = config
-    
+
     def setup(self, device):
         rag = DevAssistantRag(self.config)
+        rag.init_engine()
         self.agent = DevAssistantAgent(rag)
         pass
 
@@ -58,12 +53,12 @@ class LlamaIndexAPI(LitAPI):
     # def _list_files(self, request: ListFilesRequest):
     #     if not request.path:
     #         request.path = '.'
-        
+
     #     abs_path = (Path(request.work_directory) / Path(request.path)).resolve()
-        
+
     #     if not abs_path.exists() or not abs_path.is_dir():
     #         return []
-        
+
     #     files = []
     #     for item in abs_path.iterdir():
     #         name = item.name
@@ -86,27 +81,34 @@ class OpenAISpecModels(OpenAISpec):
         self.work_dir_updated = None
 
     def pre_setup(self, lit_api: LitAPI):
-        self.add_endpoint('/v1/models', self.models, ["GET"])
-        self.add_endpoint('/v1/models', self.options_models, ["OPTIONS"])
-        self.add_endpoint('/set-project-info', self._set_project_info, ["POST"])
-        self.add_endpoint('/confirm-tool-call', self._confirm_tool_call, ["POST"])
-        self.add_endpoint('/list-files', self._list_files, ["POST"])
-        self.add_endpoint('/reindex', self._reindex_project, ["POST"])
+        self.add_endpoint("/v1/models", self.models, ["GET"])
+        self.add_endpoint("/v1/models", self.options_models, ["OPTIONS"])
+        self.add_endpoint("/set-project-info", self._set_project_info, ["POST"])
+        self.add_endpoint("/confirm-tool-call", self._confirm_tool_call, ["POST"])
+        self.add_endpoint("/list-files", self._list_files, ["POST"])
+        self.add_endpoint("/reindex", self._reindex_project, ["POST"])
         super().pre_setup(lit_api)
 
     async def models(self, request: Request):
-        response = requests.get(self.api_url + '/models').json()
+        response = requests.get(self.api_url + "/models").json()
         return JSONResponse(response)
-    
+
     async def options_models(self, request: Request):
         return Response(status_code=200)
-    
+
     def populate_context(self, context, request):
-        ignore = (SetProjectInfoRequest, ConfirmToolCallRequest, ListFilesRequest, ReindexProjectRequest)
+        ignore = (
+            SetProjectInfoRequest,
+            ConfirmToolCallRequest,
+            ListFilesRequest,
+            ReindexProjectRequest,
+        )
         if not isinstance(request, ignore):
             super().populate_context(context, request)
 
-    async def streaming_completion(self, request: ChatCompletionRequest, pipe_responses: list):
+    async def streaming_completion(
+        self, request: ChatCompletionRequest, pipe_responses: list
+    ):
         try:
             model = request.model
             usage_info = None
@@ -116,7 +118,9 @@ class OpenAISpecModels(OpenAISpec):
                 usage_infos = []
                 # iterate over n choices
                 for i, (response, status) in enumerate(streaming_response):
-                    if status == LitAPIStatus.ERROR and isinstance(response, HTTPException):
+                    if status == LitAPIStatus.ERROR and isinstance(
+                        response, HTTPException
+                    ):
                         raise response
                     elif status == LitAPIStatus.ERROR:
                         logger.error("Error in streaming response: %s", response)
@@ -134,7 +138,9 @@ class OpenAISpecModels(OpenAISpec):
 
                 # Only use the last item from encode_response
                 usage_info = sum(usage_infos)
-                chunk = ChatCompletionChunkType(model=model, choices=choices, usage=None, type=type)
+                chunk = ChatCompletionChunkType(
+                    model=model, choices=choices, usage=None, type=type
+                )
                 logger.debug(chunk)
                 yield f"data: {chunk.model_dump_json(by_alias=True)}\n\n"
 
@@ -147,10 +153,7 @@ class OpenAISpecModels(OpenAISpec):
                 for i in range(request.n)
             ]
             last_chunk = ChatCompletionChunkType(
-                model=model,
-                choices=choices,
-                usage=usage_info,
-                type=type
+                model=model, choices=choices, usage=usage_info, type=type
             )
             yield f"data: {last_chunk.model_dump_json(by_alias=True)}\n\n"
             yield "data: [DONE]\n\n"
@@ -158,17 +161,17 @@ class OpenAISpecModels(OpenAISpec):
             logger.error("Error in streaming response: %s", e, exc_info=True)
             yield _openai_format_error(e)
             return
-        
+
     def _encode_response(self, output):
         ignore = (ListFilesResponse, ReindexProjectResponse)
         if isinstance(output, ignore):
             return output
         return super()._encode_response(output)
-        
+
     async def _set_project_info(self, request: SetProjectInfoRequest):
         self._put_request_to_queue(request)
         return Response(status_code=200)
-    
+
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
         self._put_request_to_queue(request)
         return Response(status_code=200)
@@ -182,7 +185,7 @@ class OpenAISpecModels(OpenAISpec):
             elif status == LitAPIStatus.ERROR:
                 raise HTTPException(status_code=500)
             return Response(response, status_code=200)
-    
+
     async def _reindex_project(self, request: ReindexProjectRequest):
         uid, event, queue = self._put_request_to_queue(request)
         data = self.data_streamer(queue, event, send_status=True)
@@ -192,7 +195,7 @@ class OpenAISpecModels(OpenAISpec):
             elif status == LitAPIStatus.ERROR:
                 raise HTTPException(status_code=500)
             return Response(response, status_code=200)
-    
+
     def _put_request_to_queue(self, request: BaseModel):
         self._server._callback_runner.trigger_event(
             EventTypes.ON_REQUEST.value,
@@ -205,26 +208,33 @@ class OpenAISpecModels(OpenAISpec):
         request_el = request.model_copy()
         uid = uuid.uuid4()
         self.response_buffer[uid] = ResponseBufferItem(event, queue)
-        self.request_queue.put((self.response_queue_id, uid, time.monotonic(), request_el))
+        self.request_queue.put(
+            (self.response_queue_id, uid, time.monotonic(), request_el)
+        )
 
         return uid, event, queue
 
 
 if __name__ == "__main__":
     logging.info("Starting dev assistant service")
-    
+
     dotenv.load_dotenv()
     config = DevAssistantConfig.from_env()
-    
-    middlewares=[
-        (CORSMiddleware, {
-            "allow_origins": ["*"],
-            "allow_credentials": True,
-            "allow_headers": ["*"],
-            "allow_methods": ["DELETE", "GET", "POST", "PUT"]
-        }),
+
+    middlewares = [
+        (
+            CORSMiddleware,
+            {
+                "allow_origins": ["*"],
+                "allow_credentials": True,
+                "allow_headers": ["*"],
+                "allow_methods": ["DELETE", "GET", "POST", "PUT"],
+            },
+        ),
     ]
 
-    api = LlamaIndexAPI(config, spec=OpenAISpecModels(config.api_base), stream=True, enable_async=True)
+    api = LlamaIndexAPI(
+        config, spec=OpenAISpecModels(config.api_base), stream=True, enable_async=True
+    )
     server = LitServer(api, middlewares=middlewares)
     server.run(port=8000, generate_client_file=False)

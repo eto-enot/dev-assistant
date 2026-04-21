@@ -12,7 +12,7 @@ TOOL_DESCRIPTION = """Use this tool to list files and folders in a given directo
 Directories names ends with slash symbol '/'."
 Usage Cost: 2"""
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dev-assistant.tools")
 
 
 class ListFilesTool(FunctionTool):
