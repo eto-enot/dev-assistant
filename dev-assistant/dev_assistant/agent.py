@@ -10,8 +10,6 @@ from typing import Annotated
 from celery_tasks import reindex_project_task
 from litserve.specs.openai import ChatCompletionRequest
 from llama_index.core import Settings
-from llama_index.core.agent.react.output_parser import ReActOutputParser
-from llama_index.core.agent.react.types import BaseReasoningStep, ResponseReasoningStep
 from llama_index.core.agent.workflow import (
     AgentOutput,
     AgentStream,
@@ -52,74 +50,38 @@ from workflows.events import StopEvent
 
 logger = logging.getLogger("dev-assistant")
 
-
-class ReActOutputParser2(ReActOutputParser):
-    def parse(self, output: str, is_streaming: bool = False) -> BaseReasoningStep:
-        try:
-            return super().parse(output, is_streaming)
-        except ValueError as e:
-            if "Could not extract final answer" not in str(e):
-                raise e
-            answer = self._try_parse_answer_only(output)
-            thought = "(Implicit) I can answer without any more tools!"
-            return ResponseReasoningStep(
-                thought=thought, response=answer, is_streaming=is_streaming
-            )
-
-    def _try_parse_answer_only(self, input_text: str) -> str:
-        pattern = r"\s*Answer:(.*?)(?:$)"
-
-        match = re.search(pattern, input_text, re.DOTALL)
-        if not match:
-            raise ValueError(
-                f"Could not extract final answer from input text: {input_text}"
-            )
-
-        return match.group(1).strip()
+RAG_TOOL_DESCRIPTION = """This is a query tool to a RAG system built on the user organization's \
+source code repositories. The purpose of this tool is to:
+- answer questions about source code behavior.
+- answer questions about source code description.
+- searching source code repository.
+Do NOT use this tool with files in working directory. Do NOT call this tool unless the user's \
+question relates to the aspects listed above.
+Usage Cost: 100
+"""
 
 
 class DevAssistantAgent:
     def __init__(self, rag: DevAssistantRag):
         logger.debug("Initializing dev assistant agent")
         self.rag = rag
-        # mult = FunctionTool.from_defaults(self.calculator)
-        # rag_tool = FunctionTool.from_defaults(self.search_codebase)
-        rag_descr = """This is a query tool to a RAG system built on the user organization's source code repositories. The purpose of this tool is to:
-- answer questions about source code behavior.
-- answer questions about source code description.
-- searching source code repository.
-Do NOT use this tool with files in working directory. Do NOT call this tool unless the user's question relates to the aspects listed above.
-Usage Cost: 100
-"""
-        rag_tool = QueryEngineTool.from_defaults(self.rag.engine, description=rag_descr)
-        calc_tool = CalculatorTool()
-        read_file = ReadFileTool()
-        create_file = CreateFileTool()
-        find_file = FindFileTool()
-        run_terminal_cmd = RunTerminalCommandTool()
-        edit_file = EditFileTool()
-        # self.engine = index.as_chat_engine(streaming=True, similarity_top_k=2)
-        # self.agent = FunctionAgent(
-        #     tools=[mult, rag_tool],
-        #     system_prompt="You are a helpful assistant that can perform calculations and search through documents to answer questions.",
-        #     llm=Settings.llm
-        # )
-        # self.agent = ReActAgent(tools=[calc_tool, rag_tool, read_file, create_file, find_file, run_terminal_cmd, edit_file], verbose=True)
+
         tools = [
-            calc_tool,
-            rag_tool,
-            read_file,
-            create_file,
-            find_file,
-            run_terminal_cmd,
-            edit_file,
+            CalculatorTool(),
+            ReadFileTool(),
+            CreateFileTool(),
+            FindFileTool(),
+            RunTerminalCommandTool(),
+            EditFileTool(),
+            QueryEngineTool.from_defaults(
+                self.rag.engine, description=RAG_TOOL_DESCRIPTION
+            ),
         ]
+
         self.agent = FunctionAgent(
             tools=tools, system_prompt=self._get_system_prompt(), verbose=True
         )
-        # self.agent.formatter = ReActChatFormatter.from_defaults(
-        #     system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
-        # self.agent.output_parser = ReActOutputParser2()
+
         self.work_dirs: dict[str, str] = dict()
         self.contexts: dict[str, Context] = dict()
         self.memory_slots: dict[str, Memory] = dict()
@@ -149,19 +111,6 @@ Usage Cost: 100
                 max_facts=50,
                 priority=1,
             ),
-            # VectorMemoryBlock(
-            #     name="vector_memory",
-            #     # required: pass in a vector store like qdrant, chroma, weaviate, milvus, etc.
-            #     vector_store=vector_store,
-            #     priority=2,
-            #     embed_model=Settings.embed_model,
-            #     # The top-k message batches to retrieve
-            #     # similarity_top_k=2,
-            #     # optional: How many previous messages to include in the retrieval query
-            #     # retrieval_context_window=5
-            #     # optional: pass optional node-postprocessors for things like similarity threshold, etc.
-            #     # node_postprocessors=[...],
-            # ),
         ]
         memory = Memory.from_defaults(
             session_id=session_id,
@@ -175,7 +124,9 @@ Usage Cost: 100
     async def search_codebase(
         self, ctx: Context, input: Annotated[str, "What to find"]
     ):
-        """Use it for searching the code base, answer questions about code behavior, and code description."""
+        """Use it for searching the code base, answer questions about \
+        code behavior, and code description."""
+
         question = "Assistant wants to call the tool: search\nAre you sure you want to proceed?"
         response = await ctx.wait_for_event(
             HumanResponseEvent,
@@ -184,6 +135,7 @@ Usage Cost: 100
                 prefix=question,  # type: ignore
             ),
         )
+
         if response.response:
             query_result = await self.rag.engine.aquery(input)
             return query_result.response  # type: ignore
@@ -228,7 +180,7 @@ Usage Cost: 100
         yield ListFilesResponse(content=files)
 
     async def _reindex_project(self, request: ReindexProjectRequest):
-        reindex_project_task.delay(request.work_directory)
+        reindex_project_task.delay(request.work_directory)  # type: ignore
         yield ReindexProjectResponse()
 
     async def _confirm_tool_call(self, request: ConfirmToolCallRequest):
@@ -245,7 +197,7 @@ Usage Cost: 100
 
     async def _set_project_info(self, request: SetProjectInfoRequest):
         self.work_dirs[request.session_id] = request.work_directory
-        if not request.session_id in self.memory_slots:
+        if request.session_id not in self.memory_slots:
             self.memory_slots[request.session_id] = self._create_memory(
                 request.session_id, request.core_info
             )
@@ -315,9 +267,8 @@ Usage Cost: 100
         handler = self.agent.run(
             messages[-1].content, ctx=ctx, memory=memory, chat_history=history
         )
+
         async for event in handler.stream_events():
-            # print(type(event), event)
-            # print()
             if isinstance(event, AgentStream):
                 yield {
                     "type": "reasoning",
@@ -375,12 +326,3 @@ Usage Cost: 100
                     "role": MessageRole.TOOL,
                     "content": event.prefix,
                 }
-            # if isinstance(event, AgentStream):
-            #     last_event = event
-            #     if start_output:
-            #         yield event.delta
-            #     if event.response.strip().endswith("\nAnswer:"):
-            #         start_output = True
-
-        # if not start_output and last_event:
-        #     yield last_event.response

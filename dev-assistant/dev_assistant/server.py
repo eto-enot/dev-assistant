@@ -110,7 +110,7 @@ class OpenAISpecModels(OpenAISpec):
         self, request: ChatCompletionRequest, pipe_responses: list
     ):
         try:
-            model = request.model
+            model = request.model or ""
             usage_info = None
             type = ""
             async for streaming_response in azip(*pipe_responses):
@@ -150,7 +150,7 @@ class OpenAISpecModels(OpenAISpec):
                     delta=ChoiceDelta(),
                     finish_reason="stop",
                 )
-                for i in range(request.n)
+                for i in range(request.n or 0)
             ]
             last_chunk = ChatCompletionChunkType(
                 model=model, choices=choices, usage=usage_info, type=type
