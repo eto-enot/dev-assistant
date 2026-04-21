@@ -1,4 +1,5 @@
 import json
+import platform
 import re
 import logging
 
@@ -7,6 +8,7 @@ import os
 
 from pathlib import Path
 from typing import Annotated, Any
+from datetime import datetime
 
 from litserve.specs.openai import ChatCompletionRequest, TextContent
 from llama_index.core import Settings
@@ -115,7 +117,7 @@ Usage Cost: 100
     def _get_system_prompt(self):
         with (Path(__file__).parents[0] / Path("system_prompt_template.md")).open("r") as f:
             prompt_str = f.read()
-        return prompt_str.replace("{context_prompt}", "", 1)
+        return prompt_str.format(os=platform.platform(), datetime=datetime.today().strftime('%Y-%m-%d'))
 
 
     def _create_static_memory_block(self, core_info: str):

@@ -20,6 +20,11 @@ NEVER surround your response with markdown code markers. You may use code marker
 
 If you cannot answer the question with the provided tool result, try to choose another tool and repeat the reasoning. You should keep repeating the above format till you have enough information to answer the question without using any more tools.
 
+## Additional Information
+
+- Today's date is {datetime}
+- Current operation system is {os}
+
 ## Current Conversation
 
 Below is the current conversation consisting of interleaving human and assistant messages.
