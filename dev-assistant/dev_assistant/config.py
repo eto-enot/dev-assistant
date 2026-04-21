@@ -1,4 +1,8 @@
 import os
+import httpx
+from llama_index.core import Settings
+from llama_index.embeddings.openai_like import OpenAILikeEmbedding
+from llama_index.llms.openai_like import OpenAILike
 
 class DevAssistantConfig:
     API_BASE_URL_KEY = 'API_BASE_URL'
@@ -9,6 +13,18 @@ class DevAssistantConfig:
         self.api_base = api_base
         self.qdrant_url = qdrant_url
         self.proxy = proxy
+        
+        client = httpx.Client(proxy=self.proxy)
+        aclient = httpx.AsyncClient(proxy=self.proxy)
+        Settings.llm = OpenAILike(
+            model='Coder LLM', api_base=self.api_base,
+            is_chat_model=True, is_function_calling_model=True,
+            http_client=client, async_http_client=aclient # type: ignore
+        )
+        Settings.embed_model = OpenAILikeEmbedding(
+            model_name="Embedding Model", api_base=self.api_base,
+            http_client=client, async_http_client=aclient
+        )
 
     @staticmethod
     def from_env():

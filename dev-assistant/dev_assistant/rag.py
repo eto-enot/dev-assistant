@@ -1,10 +1,6 @@
-import httpx
-
 from pathlib import Path
 
 from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings, StorageContext
-from llama_index.embeddings.openai_like import OpenAILikeEmbedding
-from llama_index.llms.openai_like import OpenAILike
 from qdrant_client import AsyncQdrantClient, QdrantClient
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 
@@ -17,17 +13,6 @@ except ImportError:
 
 class DevAssistantRag:
     def __init__(self, config: DevAssistantConfig):
-        client = httpx.Client(proxy=config.proxy)
-        aclient = httpx.AsyncClient(proxy=config.proxy)
-        Settings.llm = OpenAILike(
-            model='Coder LLM', api_base=config.api_base,
-            is_chat_model=True, is_function_calling_model=True,
-            http_client=client, async_http_client=aclient # type: ignore
-        )
-        Settings.embed_model = OpenAILikeEmbedding(
-            model_name="Embedding Model", api_base=config.api_base,
-            http_client=client, async_http_client=aclient
-        )
         self.config = config
         self.engine = self._init_engine()
 
