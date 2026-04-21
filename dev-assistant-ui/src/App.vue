@@ -266,6 +266,11 @@ async function sendMessage(message: string) {
             body: JSON.stringify(requestBody)
         });
 
+        setTimeout(() => {
+            if (messagesContainerRef.value)
+                messagesContainerRef.value.scrollTop();
+        }, 0);
+
         if (!response.ok) {
             throw new Error(`API Error: ${response.status} ${response.statusText}`);
         }
