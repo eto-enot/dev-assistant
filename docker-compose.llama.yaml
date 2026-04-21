@@ -1,4 +1,21 @@
 services:
+  redis:
+    image: redis:8.6.1-alpine
+    volumes:
+      - ./redis:/data
+    networks:
+      - back_net
+    ports:
+      - 6379:6379
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'redis-cli ping | grep PONG'"]
+      start_period: 30s
+      start_interval: 5s
+      interval: 60s
+      retries: 5
+    restart: unless-stopped
+  
   qdrant:
     image: qdrant/qdrant:v1.16
     restart: unless-stopped
@@ -92,26 +109,49 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.9.1
-    ports:
-      - 9090:9090
     volumes:
       - ./etc/prometheus.yaml:/etc/prometheus/prometheus.yml
     networks:
-      - back_net
+      - observe_net
     depends_on:
-      vllm_llm:
-        condition: service_healthy
-      vllm_emb:
-        condition: service_healthy
+      - otel-collector
 
   grafana:
     image: grafana/grafana:12.3
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    volumes:
+      - ./etc/grafana/provisioning:/etc/grafana/provisioning
     ports:
       - 3000:3000
     networks:
-      - back_net
+      - observe_net
     depends_on:
       - prometheus
+      - loki
+
+  loki:
+    image: grafana/loki:main-93650c0
+    volumes:
+      - ./etc/loki-config.yaml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - observe_net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.149.0
+    command: --config=/etc/otel-collector-config.yaml
+    volumes:
+      - ./etc/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - 4317:4317
+      - 4318:4318
+    networks:
+      - back_net
+      - observe_net
 
 networks:
   back_net:
+  observe_net:
