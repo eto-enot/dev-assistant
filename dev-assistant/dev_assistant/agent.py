@@ -79,13 +79,12 @@ class DevAssistantAgent:
         self.rag = rag
         # mult = FunctionTool.from_defaults(self.calculator)
         # rag_tool = FunctionTool.from_defaults(self.search_codebase)
-        rag_descr = """
-Use query_engine_tool for:
-- answer questions about source code behavior
-- answer questions about source code description
-- searching source code repository
-Do NOT use this tool with files in working directory
-Usage Cost: 50
+        rag_descr = """This is a query tool to a RAG system built on the user organization's source code repositories. The purpose of this tool is to:
+- answer questions about source code behavior.
+- answer questions about source code description.
+- searching source code repository.
+Do NOT use this tool with files in working directory. Do NOT call this tool unless the user's question relates to the aspects listed above.
+Usage Cost: 100
 """
         rag_tool = QueryEngineTool.from_defaults(
             self.rag.engine,
@@ -103,10 +102,12 @@ Usage Cost: 50
         #     system_prompt="You are a helpful assistant that can perform calculations and search through documents to answer questions.",
         #     llm=Settings.llm
         # )
-        self.agent = ReActAgent(tools=[calc_tool, rag_tool, read_file, create_file, find_file, run_terminal_cmd, edit_file], verbose=True)
-        self.agent.formatter = ReActChatFormatter.from_defaults(
-            system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
-        self.agent.output_parser = ReActOutputParser2()
+        #self.agent = ReActAgent(tools=[calc_tool, rag_tool, read_file, create_file, find_file, run_terminal_cmd, edit_file], verbose=True)
+        tools = [calc_tool, rag_tool, read_file, create_file, find_file, run_terminal_cmd, edit_file]
+        self.agent = FunctionAgent(tools=tools, system_prompt=self._get_system_prompt(), verbose=True)
+        # self.agent.formatter = ReActChatFormatter.from_defaults(
+        #     system_header=self._get_system_prompt(), observation_role=MessageRole.TOOL)
+        # self.agent.output_parser = ReActOutputParser2()
         self.work_dirs: dict[str, str] = dict()
         self.contexts: dict[str, Context] = dict()
         self.memory_slots: dict[str, Memory] = dict()
@@ -284,15 +285,13 @@ Usage Cost: 50
             history = messages[:-1]
 
         handler = self.agent.run(messages[-1].content, ctx=ctx, memory=memory, chat_history=history)
-        start_output = False
-        last_event = None
         async for event in handler.stream_events():
             # print(type(event), event)
             # print()
             if isinstance(event, AgentStream):
-                yield {"type": "reasoning", "role": "assistant", "content": event.delta}
+                yield {"type": "reasoning", "role": MessageRole.ASSISTANT, "content": event.delta}
             elif isinstance(event, ToolCall):
-                yield {"type": "tool_call", "role": "assistant", "content": "", "tool_calls": [{"id": event.tool_id, "function": {"name": event.tool_name, "arguments": json.dumps(event.tool_kwargs)}, "type": "function"}]}
+                yield {"type": "tool_call", "role": MessageRole.ASSISTANT, "content": "", "tool_calls": [{"id": event.tool_id, "function": {"name": event.tool_name, "arguments": json.dumps(event.tool_kwargs)}, "type": "function"}]}
             elif isinstance(event, ToolCallResult):
                 content = ''
                 output = event.tool_output.raw_output
@@ -300,7 +299,7 @@ Usage Cost: 50
                     content = output.response
                 else:
                     content = str(output)
-                yield {"type": "tool_call_result", "role": "tool", "content": content, "tool_calls": [{"id": event.tool_id, "function": {"name": event.tool_name, "arguments": json.dumps(event.tool_kwargs)}, "type": "function"}]}
+                yield {"type": "tool_call_result", "role": MessageRole.TOOL, "content": content, "tool_calls": [{"id": event.tool_id, "function": {"name": event.tool_name, "arguments": json.dumps(event.tool_kwargs)}, "type": "function"}]}
             elif isinstance(event, StopEvent):
                 content = ''
                 if isinstance(event.result, AgentOutput):
@@ -309,7 +308,7 @@ Usage Cost: 50
                     content = str(event.result)
                 yield {"type": "answer", "role": "assistant", "content": content}
             elif isinstance(event, InputRequiredEvent):
-                yield {"type": "tool_call_confirm", "role": "tool", "content": event.prefix}
+                yield {"type": "tool_call_confirm", "role": MessageRole.TOOL, "content": event.prefix}
             # if isinstance(event, AgentStream):
             #     last_event = event
             #     if start_output:

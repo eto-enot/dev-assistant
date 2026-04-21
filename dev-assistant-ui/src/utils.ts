@@ -1,4 +1,4 @@
-import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, MessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallConfirmMessageUpdateEvent, ToolCallMessageUpdateEvent } from './events';
+import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, MessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallConfirmMessageUpdateEvent, ToolCallMessageUpdateEvent, ToolCallResultMessageUpdateEvent } from './events';
 import type { ChatCompletionChunk, ChatCompletionError, FunctionCall, Settings } from './types';
 
 export function getOS() {
@@ -78,10 +78,11 @@ export async function processStreamResponse(response: Response, messageId: strin
                             break;
                         case 'tool_call':
                             callInfo = choice?.delta.tool_calls![0]?.function;
-                            const text = `Tool Call: ${callInfo?.name}`;
+                            const text = `Tool Call: ${callInfo?.name}\n`;
                             event = new ToolCallMessageUpdateEvent(text);
                             break;
                         case 'tool_call_result':
+                            event = new ToolCallResultMessageUpdateEvent(`Tool Call Result: ${content}\n`);
                             break;
                         case 'tool_call_confirm':
                             event = new ToolCallConfirmMessageUpdateEvent(content);

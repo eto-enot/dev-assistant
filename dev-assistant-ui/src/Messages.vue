@@ -36,7 +36,7 @@ function onConfirm(message: Message, isAllowed: boolean) {
                 <i :class="msg.avatarIcon"></i>
             </div>
             <div class="message-content">
-                <div class="reasoning-block" v-if="msg.role !== 'user' && msg.reasoning.startsWith('Thought:')">
+                <div class="reasoning-block" v-if="msg.role !== 'user' && msg.reasoning">
                     <span class="reasoning-toggle">
                         <a href="javascript:void(0)" class="reasoning-btn"
                             @click="() => msg.isReasoningCollapsed = !msg.isReasoningCollapsed">Reasoning</a>
@@ -116,6 +116,7 @@ function onConfirm(message: Message, isAllowed: boolean) {
 .tool-confirm-buttons {
     display: flex;
     gap: 4px;
-    align-self: center;
+    align-self: end;
+    padding: 6px 1px;
 }
 </style>

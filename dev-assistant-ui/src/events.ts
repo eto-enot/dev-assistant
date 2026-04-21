@@ -24,6 +24,12 @@ export class ToolCallMessageUpdateEvent extends MessageUpdateEvent {
     }
 }
 
+export class ToolCallResultMessageUpdateEvent extends MessageUpdateEvent {
+    constructor(content: string) {
+        super(content);
+    }
+}
+
 export class ErrorMessageUpdateEvent extends MessageUpdateEvent {
     constructor(content: string) {
         super(content);

@@ -17,7 +17,7 @@ services:
     command: >
       -m ${LLAMA_LLM_MODEL}
       --jinja
-      -fa 1 -ncmoe 30
+      -fa 1 -cmoe
       -c 65536
       --temp 1.0
       --min-p 0.0 --top-p 0.95 --top-k 20

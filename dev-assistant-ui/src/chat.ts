@@ -1,5 +1,5 @@
 import { Marked } from "marked";
-import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallConfirmMessageUpdateEvent, ToolCallMessageUpdateEvent, type MessageUpdateEvent } from "./events";
+import { AnswerMessageUpdateEvent, ErrorMessageUpdateEvent, ReasoningMessageUpdateEvent, ToolCallConfirmMessageUpdateEvent, ToolCallMessageUpdateEvent, ToolCallResultMessageUpdateEvent, type MessageUpdateEvent } from "./events";
 import type { Role } from "./types";
 import { markedHighlight } from "marked-highlight";
 import hljs from 'highlight.js';
@@ -29,6 +29,7 @@ function renderMarkdown(text: string) {
     text = text.replace(/Answer:/gm, '\n**Answer:**');
     text = text.replace(/Action Input:/gm, '\n**Action Input:**');
     text = text.replace(/Tool Call:/gm, '\n**Tool Call:**');
+    text = text.replace(/Tool Call Result:/gm, '\n**Tool Call Result:**');
 
     return marked.parse(text);
 }
@@ -59,7 +60,9 @@ export class Message {
             this.reasoning += event.content;
         } else if (event instanceof AnswerMessageUpdateEvent) {
             this.content += event.content;
-        } else if (event instanceof ToolCallMessageUpdateEvent) {
+        } else if (event instanceof ToolCallMessageUpdateEvent ||
+            event instanceof ToolCallResultMessageUpdateEvent) {
+
             if (!this.reasoning.endsWith(event.content + '\n'))
                 this.reasoning += '\n' + event.content + '\n';
         } else if (event instanceof ToolCallConfirmMessageUpdateEvent) {
