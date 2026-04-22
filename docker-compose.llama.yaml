@@ -91,6 +91,36 @@ services:
           - driver: nvidia
             device_ids: ['${VLLM_GPU_DEVICE}']
             capabilities: [gpu]
+            
+  vllm_rank:
+    image: 'ghcr.io/ggml-org/llama.cpp:server-cuda12-b8840'
+    runtime: nvidia
+    ipc: host
+    volumes:
+      - ./llama-models:/models
+    command: >
+      -m ${LLAMA_RANK_MODEL}
+      --jinja
+      -fa 1 --rerank
+      --host 0.0.0.0 --port 8000
+      --metrics
+      --no-webui
+      --offline
+    networks:
+      - back_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['${VLLM_GPU_DEVICE}']
+            capabilities: [gpu]
 
   litellm:
     image: ghcr.io/berriai/litellm:v1.80.11-stable.1
@@ -105,6 +135,8 @@ services:
       vllm_llm:
         condition: service_healthy
       vllm_emb:
+        condition: service_healthy
+      vllm_rank:
         condition: service_healthy
 
   prometheus:

@@ -9,3 +9,8 @@ model_list:
       model: openai/Embedding Model
       api_base: http://vllm_emb:8000/v1
       api_key: none
+  - model_name: Rerank Model
+    litellm_params:
+      model: openai/Rerank Model
+      api_base: http://vllm_rank:8000/v1
+      api_key: none
