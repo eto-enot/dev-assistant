@@ -22,5 +22,5 @@ def reindex_project_task(self, work_directory: str):
     logger.info("Starting project indexing")
     config = DevAssistantConfig.from_env()
     rag = DevAssistantRag(config)
-    rag.create_index(work_directory)
+    rag.create_index(work_directory, "*.cs")
     logger.info("Done project indexing")

@@ -1,4 +1,6 @@
+import re
 from typing import Any, List, Sequence
+from xml.dom.expatbuilder import TEXT_NODE
 from llama_index.core.node_parser.interface import NodeParser
 from llama_index.core.schema import BaseNode, Document, NodeRelationship, TextNode
 from llama_index.core.callbacks.base import CallbackManager
@@ -53,6 +55,8 @@ def get_parser_for_file(file_name: str):
 
 
 def replace_collapse(node: Node):
+    if node.type == 'arrow_expression_clause':
+        return "=> ...;".encode('utf-8')
     return "{ ... }".encode('utf-8')
 
 
@@ -74,7 +78,8 @@ def replace_children(
         for child in reversed(childrenToCollapse):
             grandChild = first_child(child, collapseBlockTypes)
             if grandChild:
-                start, end = grandChild.start_byte, grandChild.end_byte
+                start = grandChild.start_byte
+                end = child.end_byte
                 collapsedChild = code[child.start_byte:start] + replace_collapse(grandChild)
                 code = code[:start] + replace_collapse(grandChild) + code[end:]
                 collapsedChildren.appendleft(collapsedChild)
@@ -90,6 +95,10 @@ def replace_children(
             index = -1
         if index > 0:
             code = code[:index] + code[index + len(childCode):]
+
+    cleanup_code = re.sub(r'^[ \t]+$', '', code.decode('utf-8'), flags=re.MULTILINE)
+    cleanup_code = re.sub(r'^[\n]+', '\n', cleanup_code, flags=re.MULTILINE)
+    code = cleanup_code.encode('utf-8')
 
     # if removedChild:
     #     lines = code.splitlines()
@@ -203,18 +212,34 @@ collapsedNodeConstructors = {
     'constructor_declaration': function_definition_chunk,
 }
 
+TEXT_NODE_TYPES = {
+    'namespace_declaration': 'namespace',
+    'class_declaration': 'class',
+    'struct_declaration': 'struct',
+    'interface_declaration': 'interface',
+    'function_declaration': 'function',
+    'method_declaration': 'method',
+    'operator_declaration': 'operator',
+    'constructor_declaration': 'constructor',
+    'compilation_unit': '',
+}
 
 def make_text_node(node: Node, content: str, parent: TextNode | None):
+    if node.type not in TEXT_NODE_TYPES:
+        raise ValueError('unsupported: ' + node.type)
+    metadata={
+        'start_row': node.start_point.row,
+        'end_row': node.end_point.row,
+        'name': get_code_path(node),
+    }
+    if TEXT_NODE_TYPES[node.type]:
+        metadata['type'] = TEXT_NODE_TYPES[node.type]
     item = TextNode(
         id_=default_id_func(0, None),
         text=content,
         start_char_idx=node.start_byte,
         end_char_idx=node.end_byte,
-        metadata={
-            'start_row': node.start_point.row,
-            'end_row': node.end_point.row,
-            'name': get_code_path(node),
-        }
+        metadata=metadata,
     )
     if parent:
         _add_parent_child_relationship(parent, item)
@@ -324,8 +349,9 @@ class SourceCodeNodeParser(NodeParser):
             lang = get_lang_for_file(file_name)
             if not lang:
                 raise ValueError("Unsupported file type: " + file_name)
-            self._code_splitter = CodeSplitter.from_defaults(lang, max_chars=self.chunk_size)
-            self._default_splitter = SentenceSplitter.from_defaults(chunk_size=self.chunk_size)
+            self._default_splitter = SentenceSplitter.from_defaults(chunk_size=self.chunk_size, chunk_overlap=self.chunk_size // 2)
+            #self._code_splitter = CodeSplitter.from_defaults(lang, max_chars=self.chunk_size)
+            self._code_splitter = self._default_splitter
             # print(f'processing {node.metadata['file_name']}')
             new_nodes = self._code_chunker(file_name, node.text, self.chunk_size)
             for new_node in new_nodes:
@@ -363,11 +389,20 @@ class SourceCodeNodeParser(NodeParser):
             if len(content) > max_chunk_size:
                 try:
                     chunks = self._code_splitter.split_text(content)
+                    if len(chunks) <= 2:
+                        chunks = [content]
                 except ValueError:
                     chunks = self._default_splitter.split_text(content)
-                yield from (make_text_node(node, chunk, parent) for chunk in chunks)
+                first = True
+                for chunk in chunks:
+                    tmp = make_text_node(node, chunk, parent)
+                    if first:
+                        item = tmp
+                        first = False
+                    yield tmp
             else:
-                yield make_text_node(node, content, parent)
+                item = make_text_node(node, content, parent)
+                yield item
 
         for child in node.children:
             yield from self._get_chunks(child, code, max_chunk_size, item, False)
@@ -379,6 +414,8 @@ class SourceCodeNodeParser(NodeParser):
             if len(text) > maxChunkSize:
                 try:
                     chunks = self._code_splitter.split_text(text)
+                    if len(chunks) <= 2:
+                        chunks = [text]
                 except ValueError:
                     chunks = self._default_splitter.split_text(text)
                 return [make_text_node(node, chunk, parent) for chunk in chunks]
@@ -398,14 +435,19 @@ class SourceCodeNodeParser(NodeParser):
     
 
 if __name__ == '__main__':
-    file_name = r'protobuf-33.5\csharp\src\Google.Protobuf\ByteString.cs'
+    file_name = r'VBScript.Parser\VBScript.Parser\VBScriptParser.cs'
     with open(file_name, 'rt', encoding='utf-8') as f:
-        text = f.read()
+        text = f.read().replace('\r\n', '\n')
 
     doc = Document(text=text, metadata={'file_name': file_name})
-    parser = SourceCodeNodeParser()
+    parser = SourceCodeNodeParser(chunk_size=128)
     nodes = parser([doc])
-    print(nodes)
+    for node in nodes:
+        print('-----------')
+        print('Parent:', node.parent_node.node_id if node.parent_node else None)
+        print("Name:", node.metadata['name'])
+        print("Type:", node.metadata['type'])
+        print(node.text)
 
     # chunks = code_chunker(file_name, text, 500)
     # chunks = [x.relationships for x in chunks]

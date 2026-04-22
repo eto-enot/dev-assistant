@@ -10,11 +10,16 @@ class DevAssistantConfig:
     API_BASE_URL_KEY = "API_BASE_URL"
     QDRANT_URL_KEY = "QDRANT_URL"
     PROXY_URL_KEY = "PROXY_URL"
+    RAG_TOP_K = "RAG_TOP_K"
+    RAG_CHUNK_SIZE = "RAG_CHUNK_SIZE"
 
-    def __init__(self, api_base: str, qdrant_url: str, proxy: str | None = None):
-        self.api_base = api_base
-        self.qdrant_url = qdrant_url
-        self.proxy = proxy
+    def __init__(self, **kwargs):
+        self.proxy = None
+        self.api_base = ''
+        self.qdrant_url = ''
+        self.rag_topk = 10
+        self.rag_chunk_size = 256
+        self.__dict__.update(kwargs)
 
     def init_models(self):
         client = httpx.Client(proxy=self.proxy)
@@ -46,5 +51,13 @@ class DevAssistantConfig:
         api_url = os.environ[DevAssistantConfig.API_BASE_URL_KEY]
         qdrant_url = os.environ[DevAssistantConfig.QDRANT_URL_KEY]
         proxy = os.environ.get(DevAssistantConfig.PROXY_URL_KEY)
+        rag_topk = int(os.environ.get(DevAssistantConfig.RAG_TOP_K, 10))
+        rag_chunk_size = int(os.environ.get(DevAssistantConfig.RAG_CHUNK_SIZE, 256))
 
-        return DevAssistantConfig(api_url, qdrant_url, proxy)
+        return DevAssistantConfig(
+            api_base=api_url,
+            qdrant_url=qdrant_url,
+            proxy=proxy,
+            rag_topk=rag_topk,
+            rag_chunk_size=rag_chunk_size,
+        )

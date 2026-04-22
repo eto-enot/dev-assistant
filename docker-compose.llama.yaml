@@ -102,6 +102,7 @@ services:
       -m ${LLAMA_RANK_MODEL}
       --jinja
       -fa 1 --rerank
+      -ub 1024
       --host 0.0.0.0 --port 8000
       --metrics
       --no-webui

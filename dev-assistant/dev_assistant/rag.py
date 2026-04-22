@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
+from llama_index.core import (Settings, SimpleDirectoryReader, StorageContext,
+                              VectorStoreIndex)
+from llama_index.core.query_engine.retriever_query_engine import \
+    RetrieverQueryEngine
+from llama_index.postprocessor.jinaai_rerank import JinaRerank
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import AsyncQdrantClient, QdrantClient
 
@@ -21,16 +25,32 @@ class DevAssistantRag:
         self.engine = None
 
     def init_engine(self):
-        index = self.create_index("data")
-        self.engine = index.as_query_engine(similarity_top_k=5)
+        index = self.create_index("")
+        retriever = index.as_retriever(similarity_top_k=self.config.rag_topk + 5)
+        rerank = JinaRerank(
+            top_n=self.config.rag_topk,
+            model="Rerank Model",
+            base_url=self.config.api_base,
+            api_key="",
+        )
+        self.engine = RetrieverQueryEngine.from_args(
+            retriever, llm=Settings.llm, node_postprocessors=[rerank]
+        )
 
     def create_index(self, work_dir: str, filter: str = "*"):
         aclient = AsyncQdrantClient(url=self.config.qdrant_url)
         client = QdrantClient(url=self.config.qdrant_url)
         vector_store = QdrantVectorStore(
-            client=client, aclient=aclient, collection_name=COLLECTION_NAME
+            client=client,
+            aclient=aclient,
+            collection_name=COLLECTION_NAME,
+            enable_hybrid=True,
+            fastembed_sparse_model="Qdrant/bm25",
         )
         context = StorageContext.from_defaults(vector_store=vector_store)
+
+        if work_dir and client.collection_exists(COLLECTION_NAME):
+            client.delete_collection(COLLECTION_NAME)
 
         if client.collection_exists(COLLECTION_NAME):
             index = VectorStoreIndex.from_vector_store(
@@ -40,8 +60,7 @@ class DevAssistantRag:
             files = [x.as_posix() for x in Path(work_dir).rglob(filter)]
             reader = SimpleDirectoryReader(input_files=files)
             docs = reader.load_data()
-            # splitter = SentenceSplitter(chunk_size=128, chunk_overlap=0)
-            parser = SourceCodeNodeParser(chunk_size=1024)
+            parser = SourceCodeNodeParser(chunk_size=self.config.rag_chunk_size)
             nodes = parser(docs)
             index = VectorStoreIndex(nodes, storage_context=context, show_progress=True)
         else:
