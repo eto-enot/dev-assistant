@@ -54,6 +54,10 @@ class DevAssistantConfig:
         rag_topk = int(os.environ.get(DevAssistantConfig.RAG_TOP_K, 10))
         rag_chunk_size = int(os.environ.get(DevAssistantConfig.RAG_CHUNK_SIZE, 256))
 
+        if proxy:
+            os.environ['HTTP_PROXY'] = proxy
+            os.environ['HTTPS_PROXY'] = proxy
+
         return DevAssistantConfig(
             api_base=api_url,
             qdrant_url=qdrant_url,

@@ -146,7 +146,7 @@ class EditFileTool(FunctionTool):
             )
             question = (
                 f"Apply the following editings to '{path}'?\n```diff\n"
-                f"{_get_patch(content, updated_content)}```"
+                f"{_get_patch(content, updated_content)}\n```"
             )
 
             response = await wait_for_event(ctx, session_id, question)

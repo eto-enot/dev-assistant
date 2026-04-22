@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from llama_index.core import (Settings, SimpleDirectoryReader, StorageContext,
@@ -17,6 +18,7 @@ except ImportError:
 
 
 COLLECTION_NAME = "code"
+logger = logging.getLogger("dev-assistant.rag")
 
 
 class DevAssistantRag:
@@ -38,6 +40,7 @@ class DevAssistantRag:
         )
 
     def create_index(self, work_dir: str, filter: str = "*"):
+        logger.info('Creating index for %s, filter %s', work_dir, filter)
         aclient = AsyncQdrantClient(url=self.config.qdrant_url)
         client = QdrantClient(url=self.config.qdrant_url)
         vector_store = QdrantVectorStore(
@@ -65,5 +68,7 @@ class DevAssistantRag:
             index = VectorStoreIndex(nodes, storage_context=context, show_progress=True)
         else:
             index = VectorStoreIndex([], storage_context=context)
+
+        logger.info("Index created")
 
         return index
