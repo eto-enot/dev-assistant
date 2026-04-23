@@ -174,8 +174,6 @@ class OpenAISpecModels(OpenAISpec):
         queue = deque()
         request_el = request.model_copy()
         uid = uuid.uuid4()
-        assert self.response_buffer
-        assert self.request_queue
         self.response_buffer[uid] = ResponseBufferItem(event, queue)  # type: ignore
         self.request_queue.put(
             (self.response_queue_id, uid, time.monotonic(), request_el)

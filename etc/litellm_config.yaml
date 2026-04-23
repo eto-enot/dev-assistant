@@ -14,3 +14,10 @@ model_list:
       model: hosted_vllm/Rerank Model
       api_base: http://vllm_rank:8000/v1
       api_key: none
+
+litellm_settings:
+  callbacks: ["otel"]
+
+callback_settings:
+  otel:
+    message_logging: true

@@ -22,6 +22,7 @@ from llama_index.core.workflow import (Context, HumanResponseEvent,
                                        InputRequiredEvent)
 from workflows.events import StopEvent
 
+from .otel import setup_otel
 from .celery_tasks import reindex_project_task
 from .model import (ConfirmToolCallRequest, ListFilesRequest,
                     ListFilesResponse, ListFilesResponseItem,
@@ -31,6 +32,7 @@ from .rag import DevAssistantRag
 from .tools import (CalculatorTool, CreateFileTool, EditFileTool, FindFileTool,
                     ReadFileTool, RunTerminalCommandTool)
 
+setup_otel()
 logger = logging.getLogger("dev-assistant")
 
 RAG_TOOL_DESCRIPTION = """This is a query tool to a RAG system built on the user organization's \

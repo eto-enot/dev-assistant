@@ -11,12 +11,12 @@ except ImportError:
 @celery_app.task(bind=True, name="reindex_project")
 def reindex_project_task(self, work_directory: str):
     from dev_assistant.config import DevAssistantConfig
-    from dev_assistant.otel_logging import setup_otel_logging
+    from dev_assistant.otel import setup_otel
     from dev_assistant.rag import DevAssistantRag
 
     dotenv.load_dotenv()
 
-    setup_otel_logging()
+    setup_otel()
     logger = logging.getLogger("dev-assistant.tasks")
     logger.setLevel(logging.INFO)
 

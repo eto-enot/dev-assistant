@@ -52,6 +52,8 @@ services:
       --max-num-seqs 16
       --max-num-batched-tokens 2048
       --speculative-config '{"method": "draft_model", "model": "${VLLM_LLM_DRAFT_MODEL}", "num_speculative_tokens": 4}'
+      --otlp-traces-endpoint=http://otel-collector:4317
+      --collect-detailed-traces=all
     networks:
       - back_net
     healthcheck:
@@ -89,6 +91,8 @@ services:
       --enable-log-outputs --enable-log-requests
       --gpu-memory-utilization 0.1
       --dtype bfloat16
+      --otlp-traces-endpoint=http://otel-collector:4317
+      --collect-detailed-traces=all
     networks:
       - back_net
     healthcheck:
@@ -126,6 +130,8 @@ services:
       --enable-log-outputs --enable-log-requests
       --gpu-memory-utilization 0.08
       --dtype bfloat16
+      --otlp-traces-endpoint=http://otel-collector:4317
+      --collect-detailed-traces=all
     networks:
       - back_net
     healthcheck:
@@ -146,6 +152,13 @@ services:
     image: ghcr.io/berriai/litellm:v1.80.11-stable.1
     volumes:
       - ./etc/litellm_config.yaml:/app/config.yaml
+    environment:
+      - OTEL_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_SERVICE_NAME=litellm
+      - OTEL_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
     ports:
       - 4000:4000
     networks:
@@ -183,12 +196,23 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
 
   loki:
     image: grafana/loki:main-93650c0
     volumes:
       - ./etc/loki-config.yaml:/etc/loki/local-config.yaml
     command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - observe_net
+
+  tempo:
+    image: grafana/tempo:main-63ff9db
+    volumes:
+      - ./etc/tempo.yaml:/etc/tempo.yaml
+    command: -target=all -config.file=/etc/tempo.yaml
+    ports:
+      - 3200:3200
     networks:
       - observe_net
 

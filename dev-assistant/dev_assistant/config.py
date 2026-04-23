@@ -4,6 +4,7 @@ import httpx
 from llama_index.core import Settings
 from llama_index.embeddings.openai_like import OpenAILikeEmbedding
 from llama_index.llms.openai_like import OpenAILike
+from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 
 
 class DevAssistantConfig:
@@ -24,6 +25,9 @@ class DevAssistantConfig:
     def init_models(self):
         client = httpx.Client(proxy=self.proxy)
         aclient = httpx.AsyncClient(proxy=self.proxy)
+
+        HTTPXClientInstrumentor.instrument_client(client)
+        HTTPXClientInstrumentor.instrument_client(aclient)
 
         Settings.llm = OpenAILike(
             model="Coder LLM",

@@ -33,6 +33,10 @@ exporters:
     endpoint: "http://loki:3100/otlp"
     tls:
       insecure: true
+  otlphttp/tempo:
+    endpoint: "http://tempo:4318"
+    tls:
+      insecure: true
   # debug:
   #   verbosity: detailed
 
@@ -46,3 +50,7 @@ service:
       receivers: [otlp]
       processors: []
       exporters: [otlphttp/loki]
+    traces:
+      receivers: [otlp]
+      processors: []
+      exporters: [otlphttp/tempo]

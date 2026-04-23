@@ -12,12 +12,15 @@ from qdrant_client import AsyncQdrantClient, QdrantClient
 try:
     from chunking import SourceCodeNodeParser
     from config import DevAssistantConfig
+    from otel import setup_otel
 except ImportError:
     from dev_assistant.chunking import SourceCodeNodeParser
     from dev_assistant.config import DevAssistantConfig
+    from dev_assistant.otel import setup_otel
 
 
 COLLECTION_NAME = "code"
+setup_otel()
 logger = logging.getLogger("dev-assistant.rag")
 
 

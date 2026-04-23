@@ -5,13 +5,14 @@ from litserve import LitServer
 from starlette.middleware.cors import CORSMiddleware
 
 from .config import DevAssistantConfig
-from .otel_logging import setup_otel_logging
+from .otel import setup_otel
 from .server import LlamaIndexAPI, OpenAISpecModels
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-setup_otel_logging()
+setup_otel()
 logger = logging.getLogger("dev-assistant")
 
-logging.info("Starting dev assistant service")
+logger.info("Starting dev assistant service")
 
 dotenv.load_dotenv()
 config = DevAssistantConfig.from_env()
@@ -32,4 +33,6 @@ api = LlamaIndexAPI(
     config, spec=OpenAISpecModels(config.api_base), stream=True, enable_async=True
 )
 server = LitServer(api, middlewares=middlewares)  # type: ignore
+FastAPIInstrumentor.instrument_app(server.app)
+
 server.run(port=8000, generate_client_file=False)
