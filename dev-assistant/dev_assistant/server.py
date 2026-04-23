@@ -5,27 +5,23 @@ import time
 import uuid
 from collections import deque
 
-import dotenv
 import requests
-from agent import DevAssistantAgent, DevAssistantRag
-from config import DevAssistantConfig
 from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
-from litserve import LitAPI, LitServer, OpenAISpec
+from litserve import LitAPI, OpenAISpec
 from litserve.callbacks.base import EventTypes
 from litserve.specs.openai import (ChatCompletionRequest,
                                    ChatCompletionStreamingChoice, ChoiceDelta,
                                    UsageInfo, _openai_format_error)
 from litserve.utils import LitAPIStatus, ResponseBufferItem, azip
-from model import (ChatCompletionChunkType, ConfirmToolCallRequest,
-                   ListFilesRequest, ListFilesResponse, ReindexProjectRequest,
-                   ReindexProjectResponse, SetProjectInfoRequest)
-from otel_logging import setup_otel_logging
 from pydantic import BaseModel
-from starlette.middleware.cors import CORSMiddleware
 
+from .agent import DevAssistantAgent, DevAssistantRag
+from .config import DevAssistantConfig
+from .model import (ChatCompletionChunkType, ConfirmToolCallRequest,
+                    ListFilesRequest, ListFilesResponse, ReindexProjectRequest,
+                    ReindexProjectResponse, SetProjectInfoRequest)
 
-setup_otel_logging()
 logger = logging.getLogger("dev-assistant")
 
 
@@ -89,7 +85,6 @@ class OpenAISpecModels(OpenAISpec):
             async for streaming_response in azip(*pipe_responses):
                 choices = []
                 usage_infos = []
-                # iterate over n choices
                 for i, (response, status) in enumerate(streaming_response):
                     if status == LitAPIStatus.ERROR and isinstance(
                         response, HTTPException
@@ -109,7 +104,6 @@ class OpenAISpecModels(OpenAISpec):
 
                     choices.append(choice)
 
-                # Only use the last item from encode_response
                 usage_info = sum(usage_infos)
                 chunk = ChatCompletionChunkType(
                     model=model, choices=choices, usage=None, type=type
@@ -150,7 +144,7 @@ class OpenAISpecModels(OpenAISpec):
         return Response(status_code=200)
 
     async def _list_files(self, request: ListFilesRequest):
-        uid, event, queue = self._put_request_to_queue(request)
+        _, event, queue = self._put_request_to_queue(request)
         data = self.data_streamer(queue, event, send_status=True)
         async for response, status in data:
             if status == LitAPIStatus.ERROR and isinstance(response, HTTPException):
@@ -160,7 +154,7 @@ class OpenAISpecModels(OpenAISpec):
             return Response(response, status_code=200)
 
     async def _reindex_project(self, request: ReindexProjectRequest):
-        uid, event, queue = self._put_request_to_queue(request)
+        _, event, queue = self._put_request_to_queue(request)
         data = self.data_streamer(queue, event, send_status=True)
         async for response, status in data:
             if status == LitAPIStatus.ERROR and isinstance(response, HTTPException):
@@ -180,34 +174,11 @@ class OpenAISpecModels(OpenAISpec):
         queue = deque()
         request_el = request.model_copy()
         uid = uuid.uuid4()
-        self.response_buffer[uid] = ResponseBufferItem(event, queue)
+        assert self.response_buffer
+        assert self.request_queue
+        self.response_buffer[uid] = ResponseBufferItem(event, queue)  # type: ignore
         self.request_queue.put(
             (self.response_queue_id, uid, time.monotonic(), request_el)
         )
 
         return uid, event, queue
-
-
-if __name__ == "__main__":
-    logging.info("Starting dev assistant service")
-
-    dotenv.load_dotenv()
-    config = DevAssistantConfig.from_env()
-
-    middlewares = [
-        (
-            CORSMiddleware,
-            {
-                "allow_origins": ["*"],
-                "allow_credentials": True,
-                "allow_headers": ["*"],
-                "allow_methods": ["DELETE", "GET", "POST", "PUT"],
-            },
-        ),
-    ]
-
-    api = LlamaIndexAPI(
-        config, spec=OpenAISpecModels(config.api_base), stream=True, enable_async=True
-    )
-    server = LitServer(api, middlewares=middlewares)
-    server.run(port=8000, generate_client_file=False)

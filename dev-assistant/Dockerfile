@@ -8,4 +8,4 @@ WORKDIR /app
 ENV UV_NO_DEV=1
 RUN uv sync --locked
 
-ENTRYPOINT [ "uv", "run", "dev_assistant/server.py" ]
+ENTRYPOINT [ "uv", "run", "-m", "dev_assistant" ]

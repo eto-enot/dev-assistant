@@ -7,46 +7,29 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
-from celery_tasks import reindex_project_task
 from litserve.specs.openai import ChatCompletionRequest
 from llama_index.core import Settings
-from llama_index.core.agent.workflow import (
-    AgentOutput,
-    AgentStream,
-    FunctionAgent,
-    ToolCall,
-    ToolCallResult,
-)
-from llama_index.core.base.llms.types import ChatMessage, MessageRole, TextBlock
+from llama_index.core.agent.workflow import (AgentOutput, AgentStream,
+                                             FunctionAgent, ToolCall,
+                                             ToolCallResult)
+from llama_index.core.base.llms.types import (ChatMessage, MessageRole,
+                                              TextBlock)
 from llama_index.core.base.response.schema import Response
-from llama_index.core.memory import (
-    FactExtractionMemoryBlock,
-    InsertMethod,
-    Memory,
-    StaticMemoryBlock,
-)
+from llama_index.core.memory import (FactExtractionMemoryBlock, InsertMethod,
+                                     Memory, StaticMemoryBlock)
 from llama_index.core.tools import QueryEngineTool
-from llama_index.core.workflow import Context, HumanResponseEvent, InputRequiredEvent
-from model import (
-    ConfirmToolCallRequest,
-    ListFilesRequest,
-    ListFilesResponse,
-    ListFilesResponseItem,
-    ReindexProjectRequest,
-    ReindexProjectResponse,
-    SetProjectInfoRequest,
-)
-from rag import DevAssistantRag
-from tools import (
-    CalculatorTool,
-    CreateFileTool,
-    EditFileTool,
-    FindFileTool,
-    ReadFileTool,
-    RunTerminalCommandTool,
-)
+from llama_index.core.workflow import (Context, HumanResponseEvent,
+                                       InputRequiredEvent)
 from workflows.events import StopEvent
 
+from .celery_tasks import reindex_project_task
+from .model import (ConfirmToolCallRequest, ListFilesRequest,
+                    ListFilesResponse, ListFilesResponseItem,
+                    ReindexProjectRequest, ReindexProjectResponse,
+                    SetProjectInfoRequest)
+from .rag import DevAssistantRag
+from .tools import (CalculatorTool, CreateFileTool, EditFileTool, FindFileTool,
+                    ReadFileTool, RunTerminalCommandTool)
 
 logger = logging.getLogger("dev-assistant")
 
