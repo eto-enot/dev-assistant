@@ -60,8 +60,8 @@ export class Message {
             this.reasoning += event.content;
         } else if (event instanceof AnswerMessageUpdateEvent) {
             this.content += event.content;
-        } else if (event instanceof ToolCallMessageUpdateEvent ||
-            event instanceof ToolCallResultMessageUpdateEvent) {
+        } else if (event instanceof ToolCallMessageUpdateEvent /* ||
+            event instanceof ToolCallResultMessageUpdateEvent*/) {
 
             if (!this.reasoning.endsWith(event.content + '\n'))
                 this.reasoning += '\n' + event.content + '\n';

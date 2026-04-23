@@ -345,7 +345,7 @@ function onToolConfirm(isAllowed: boolean) {
 
     <div class="container">
         <div class="sidebar">
-            <HistoryList v-bind="historyList" @new-chat="startNewChat" @item-removed="removeConversation"
+            <HistoryList v-model="historyList" @new-chat="startNewChat" @item-removed="removeConversation"
                 @item-selected="setActiveConversation"></HistoryList>
         </div>
 

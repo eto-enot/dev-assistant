@@ -104,6 +104,10 @@ function onConfirm(message: Message, isAllowed: boolean) {
     padding: 6px 2px;
 }
 
+.tool-confirm-message :deep(pre) {
+    font-size: 10pt;
+}
+
 .btn-tool-confirm-yes {
     padding: 2px 4px;
 }
