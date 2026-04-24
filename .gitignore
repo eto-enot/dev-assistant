@@ -6,6 +6,9 @@ pgdata/
 dev-assistant/data/
 dev-assistant/context/
 vllm-cache/
+airflow/config
+airflow/logs
+airflow/plugins
 
 *.pyc
 /llm-benchmark/question.jsonl
