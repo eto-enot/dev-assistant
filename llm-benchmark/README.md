@@ -24,8 +24,8 @@ docker build -t llm-benchmark .
 Примеры запуска:
 
 ```
-docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct llm-benchmark
-docker run -it --rm -e MODEL=Qwen/Qwen2.5-1.5B-Instruct -e NUM_PROMPTS=-1 -e DATASET_NAME=spec_bench -e REQUEST_RATE=5 --network diplom_back_net llm-benchmark
+docker run -it --rm -e MODEL=Qwen/Qwen3.5-4B llm-benchmark
+docker run -it --rm -e MODEL=Qwen/Qwen3.5-4B -e NUM_PROMPTS=-1 -e DATASET_NAME=spec_bench -e REQUEST_RATE=5 --network diplom_back_net llm-benchmark
 ```
 
 ### Спекулятивное декодирование
