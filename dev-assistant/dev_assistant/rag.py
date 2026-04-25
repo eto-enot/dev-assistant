@@ -1,10 +1,13 @@
 import logging
 from pathlib import Path
 
-from llama_index.core import (Settings, SimpleDirectoryReader, StorageContext,
-                              VectorStoreIndex)
-from llama_index.core.query_engine.retriever_query_engine import \
-    RetrieverQueryEngine
+from llama_index.core import (
+    Settings,
+    SimpleDirectoryReader,
+    StorageContext,
+    VectorStoreIndex,
+)
+from llama_index.core.query_engine.retriever_query_engine import RetrieverQueryEngine
 from llama_index.postprocessor.jinaai_rerank import JinaRerank
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import AsyncQdrantClient, QdrantClient
@@ -19,7 +22,6 @@ except ImportError:
     from dev_assistant.otel import setup_otel
 
 
-COLLECTION_NAME = "code"
 setup_otel()
 logger = logging.getLogger("dev-assistant.rag")
 
@@ -42,35 +44,43 @@ class DevAssistantRag:
             retriever, llm=Settings.llm, node_postprocessors=[rerank]
         )
 
-    def create_index(self, work_dir: str, filter: str = "*"):
-        logger.info('Creating index for %s, filter %s', work_dir, filter)
+    def get_index(self, recreate=False):
         aclient = AsyncQdrantClient(url=self.config.qdrant_url)
         client = QdrantClient(url=self.config.qdrant_url)
+
+        if recreate and client.collection_exists(self.config.rag_collection_name):
+            client.delete_collection(self.config.rag_collection_name)
+
         vector_store = QdrantVectorStore(
             client=client,
             aclient=aclient,
-            collection_name=COLLECTION_NAME,
+            collection_name=self.config.rag_collection_name,
             enable_hybrid=True,
             fastembed_sparse_model="Qdrant/bm25",
         )
         context = StorageContext.from_defaults(vector_store=vector_store)
 
-        if work_dir and client.collection_exists(COLLECTION_NAME):
-            client.delete_collection(COLLECTION_NAME)
-
-        if client.collection_exists(COLLECTION_NAME):
+        if client.collection_exists(self.config.rag_collection_name):
             index = VectorStoreIndex.from_vector_store(
                 vector_store=vector_store, storage_context=context
             )
-        elif work_dir:
+        else:
+            index = VectorStoreIndex([], storage_context=context)
+
+        return index
+
+    def create_index(self, work_dir: str, filter: str = "*"):
+        logger.info("Creating index for %s, filter %s", work_dir, filter)
+
+        index = self.get_index(bool(work_dir))
+
+        if work_dir:
             files = [x.as_posix() for x in Path(work_dir).rglob(filter)]
             reader = SimpleDirectoryReader(input_files=files)
             docs = reader.load_data()
             parser = SourceCodeNodeParser(chunk_size=self.config.rag_chunk_size)
             nodes = parser(docs)
-            index = VectorStoreIndex(nodes, storage_context=context, show_progress=True)
-        else:
-            index = VectorStoreIndex([], storage_context=context)
+            index.insert_nodes(nodes)
 
         logger.info("Index created")
 

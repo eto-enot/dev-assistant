@@ -19,6 +19,9 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.16
     restart: unless-stopped
+    networks:
+      - back_net
+      - airflow_net
     volumes:
       - ./qdrant_data:/qdrant/storage
     ports:
@@ -231,3 +234,4 @@ services:
 networks:
   back_net:
   observe_net:
+  airflow_net:

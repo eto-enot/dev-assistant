@@ -11,8 +11,9 @@ class DevAssistantConfig:
     API_BASE_URL_KEY = "API_BASE_URL"
     QDRANT_URL_KEY = "QDRANT_URL"
     PROXY_URL_KEY = "PROXY_URL"
-    RAG_TOP_K = "RAG_TOP_K"
-    RAG_CHUNK_SIZE = "RAG_CHUNK_SIZE"
+    RAG_TOP_K_KEY = "RAG_TOP_K"
+    RAG_CHUNK_SIZE_KEY = "RAG_CHUNK_SIZE"
+    RAG_COLLECTION_NAME_KEY = "RAG_COLLECTION_NAME"
 
     def __init__(self, **kwargs):
         self.proxy = None
@@ -20,6 +21,7 @@ class DevAssistantConfig:
         self.qdrant_url = ''
         self.rag_topk = 10
         self.rag_chunk_size = 256
+        self.rag_collection_name = 'code'
         self.__dict__.update(kwargs)
 
     def init_models(self):
@@ -48,15 +50,16 @@ class DevAssistantConfig:
     @staticmethod
     def from_env():
         if DevAssistantConfig.API_BASE_URL_KEY not in os.environ:
-            raise ValueError("API base url not specified.")
+            raise KeyError("API base url not specified.")
         if DevAssistantConfig.QDRANT_URL_KEY not in os.environ:
-            raise ValueError("Qdrant url not specified.")
+            raise KeyError("Qdrant url not specified.")
 
         api_url = os.environ[DevAssistantConfig.API_BASE_URL_KEY]
         qdrant_url = os.environ[DevAssistantConfig.QDRANT_URL_KEY]
         proxy = os.environ.get(DevAssistantConfig.PROXY_URL_KEY)
-        rag_topk = int(os.environ.get(DevAssistantConfig.RAG_TOP_K, 10))
-        rag_chunk_size = int(os.environ.get(DevAssistantConfig.RAG_CHUNK_SIZE, 256))
+        rag_topk = int(os.environ.get(DevAssistantConfig.RAG_TOP_K_KEY, 10))
+        rag_chunk_size = int(os.environ.get(DevAssistantConfig.RAG_CHUNK_SIZE_KEY, 256))
+        rag_collection_name = os.environ.get(DevAssistantConfig.RAG_COLLECTION_NAME_KEY, 'code')
 
         if proxy:
             os.environ['HTTP_PROXY'] = proxy
@@ -68,4 +71,5 @@ class DevAssistantConfig:
             proxy=proxy,
             rag_topk=rag_topk,
             rag_chunk_size=rag_chunk_size,
+            rag_collection_name=rag_collection_name
         )

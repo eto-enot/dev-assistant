@@ -11,6 +11,13 @@ x-airflow-common:
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
+    GITLAB_TOKEN: ${GITLAB_TOKEN}
+    GITLAB_URL: ${GITLAB_URL}
+    QDRANT_URL: ${QDRANT_URL}
+    API_BASE_URL: ${API_BASE_URL}
+    RAG_COLLECTION_NAME: ${RAG_COLLECTION_NAME:-code}
+    RAG_CHUNK_SIZE: ${RAG_CHUNK_SIZE:-256}
+    GITLAB_FILE_FILTER: ${GITLAB_FILE_FILTER:-*.*}
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -18,10 +25,12 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     - ./dev-assistant/dev_assistant:/opt/airflow/dags/dev_assistant
   user: "${AIRFLOW_UID:-50000}:0"
+  networks:
+    - airflow_net
   depends_on:
     &airflow-common-depends-on
-    qdrant:
-      condition: service_started
+    # qdrant:
+    #   condition: service_started
     postgres:
       condition: service_healthy
 
@@ -34,6 +43,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-airflow}
     volumes:
       - ./pgdata:/var/lib/postgresql/data
+    networks:
+      - airflow_net
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -41,14 +52,17 @@ services:
       start_period: 5s
     restart: always
 
-  qdrant:
-    image: qdrant/qdrant:v1.16
-    restart: unless-stopped
-    volumes:
-      - ./qdrant_data:/qdrant/storage
-    ports:
-      - "6333:6333"
-      - "6334:6334"
+  # qdrant:
+  #   image: qdrant/qdrant:v1.16
+  #   restart: unless-stopped
+  #   networks:
+  #     - back_net
+  #     - airflow_net
+  #   volumes:
+  #     - ./qdrant_data:/qdrant/storage
+  #   ports:
+  #     - "6333:6333"
+  #     - "6334:6334"
 
   airflow-webserver:
     <<: *airflow-common
@@ -147,3 +161,7 @@ services:
     user: "0:0"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
+
+networks:
+  # back_net:
+  airflow_net:
