@@ -38,8 +38,13 @@ AI-ассистент для разработки ПО представляет 
 
 ```
 .
+├── airflow/                    # Оператор Apache Airflow для индексации репозиториев GitLab
+│   ├── Dockerfile              # Образ airflow
+│   ├── dags/                   # DAG-файлы
+│   │   └── gitlab_indexer.py   # Задача индексации репозиториев GitLab
 ├── dev-assistant/              # Сервис ассистента (FastAPI + LlamaIndex)
 │   ├── dev_assistant/          
+│   │   ├── __main__.py         # Точка входа в программу-ассистент
 │   │   ├── agent.py            # Реализация агента
 │   │   ├── server.py           # API-сервер
 │   │   ├── rag.py              # RAG (клиент Qdrant, индексация)
@@ -48,17 +53,45 @@ AI-ассистент для разработки ПО представляет 
 │   │   ├── celery_app.py       # Приложение Celery
 │   │   ├── celery_tasks.py     # Задача по индексации рабочего проекта
 │   │   ├── tools/              # Доступные для агента инструменты
+│   │       ├── calculator.py   # Калькулятор
+│   │       ├── create_file.py  # Инструмент для создания/перезаписи файлов
+│   │       ├── edit_file.py    # Инструмент для редактирования существующих файлов
+│   │       ├── find_file.py    # Инструмент поиска файлов по шаблону имени
+│   │       ├── list_files.py   # Инструмент для вывода содержимого каталогов
+│   │       ├── read_file.py    # Инструмент для чтения файлов
+│   │       ├── terminal.py     # Инструмент для выполнения команды терминала
+│   │       └── utils.py        # Вспомогательные функции
+│   ├── pyproject.toml          # Файл проекта
 ├── dev-assistant-ui/           # Фронтенд (Vue, TypeScript)
-│   ├── src/                    # Компоненты: App, Messages, Prompt, Settings...
-├── airflow/                    # Оператор Apache Airflow для индексации репозиториев GitLab
-│   ├── Dockerfile              # Образ airflow
-│   ├── dags/                   # DAG-файлы (gitlab_indexer.py)
-├── vllm-cuda/                  # Исправление Docker-образа vLLM для CUDA
+│   ├── mock
+│   │   └── api.mock.ts         # Мок для тестирования API
+│   ├── src
+│   │   ├── App.vue
+│   │   ├── FileList.vue
+│   │   ├── HistoryList.vue
+│   │   ├── Messages.vue
+│   │   ├── Prompt.vue
+│   │   ├── Settings.vue
+│   │   ├── additional.d.ts
+│   │   ├── assets
+│   │   │   └── main.css
+│   │   ├── chat.ts
+│   │   ├── debounce.ts
+│   │   ├── events.ts
+│   │   ├── main.ts
+│   │   ├── types.ts
+│   │   └── utils.ts
 ├── etc/                        # Файлы конфигурации (vLLM, LiteLLM, OTel и т.д.)
+└── ir-benchmark/               # Бенчмарк алгоритмов сегментации кода
+│   ├── BuildDataset            # Вспомогательная программа для построения датасета
+│   ├── calc_metrics.ipynb      # Вычисление метрик поиска
+│   └── make_dataset.ipynb      # Построение датасета (по данным от вспомогательной программы)
+├── llm-benchmark               # Бенчмарк замера производительности генерации LLM
+│   ├── Dockerfile              # Образ для выполнения запросов из бенчмарка
+├── vllm-cuda/                  # Исправление Docker-образа vLLM для CUDA
 ├── docker-compose.yaml         # Запуск инфраструктуры с использованием vLLM
 ├── docker-compose.llama.yaml   # Альтернатива с использованием llama.cpp
 ├── docker-compose.airflow.yaml # Запуск Airflow для индексации репозиториев GitLab
-└── ir-benchmark/               # Бенчмарк алгоритмов сегментации кода
 ```
 
 ## Быстрый старт
@@ -74,47 +107,34 @@ AI-ассистент для разработки ПО представляет 
 
 **Вариант 1: vLLM (рекомендуется)**
 
+Предварительно настройте параметры в `.env` на основе примера `.env.example`.
+
 ```bash
-# Настройте модели в .env
 docker compose up -d
 ```
 
 **Вариант 2: llama.cpp**
 
 ```bash
-# Поместите GGUF-модели в ./llama-models/ и настройте пути в .env
 docker compose -f docker-compose.llama.yaml up -d
+```
+
+Сервис ассистента запускается на машине разработчика. 
+```bash
+cd dev-assistant
+# Предварительно настройте параметры в .env на основе примера .env.example.
+uv sync
+uv run -m dev_assistant &
+uv run celery -A dev_assistant.celery_app worker --concurrency=3 -P solo &
 ```
 
 **Запуск Airflow**
 
 ```bash
-# Настройте переменные в .env (GITLAB_TOKEN, GITLAB_URL, QDRANT_URL и др.)
 docker compose -f docker-compose.airflow.yaml up -d
 ```
 
-Airflow веб-интерфейс доступен на `http://localhost:8080` (логин/пароль: `airflow`/`airflow`).
-
-### Запуск бэкенда локально
-
-```bash
-cd dev-assistant
-
-# Установка зависимостей
-uv sync
-
-# Настройка переменных окружения (см. dev-assistant/.env)
-export API_BASE_URL=http://your-host:4000/v1
-export QDRANT_URL=http://your-host
-
-# Запуск сервера
-uv run -m dev_assistant
-
-# Воркер Celery (для переиндексации)
-uv run celery -A dev_assistant.celery_app worker --concurrency=3 -P solo
-```
-
-Сервер доступен на `http://localhost:8000` с OpenAI-совместимым API.
+Веб-интерфейс Airflow доступен на `http://localhost:8080` (логин/пароль: `airflow`/`airflow`).
 
 ### Сборка UI
 
@@ -128,47 +148,43 @@ npm run build
 
 ## Переменные окружения
 
-Полные списки переменных - в `.env.example` (корень) и `dev-assistant/.env.example`.
+Полные списки переменных - в `.env.example` и `dev-assistant/.env.example`.
 
 ### dev-assistant
 
-| Переменная              | Описание                               | По умолчанию               |
-|-------------------------|----------------------------------------|----------------------------|
-| `API_BASE_URL`          | LiteLLM endpoint (OpenAI-compatible)   | - (обязательна)            |
-| `QDRANT_URL`            | Адрес Qdrant                           | - (обязательна)            |
-| `REDIS_URL`             | Redis broker для Celery                | `redis://localhost:6379/0` |
-| `PROXY_URL`             | HTTP-прокси                            | -                          |
-| `OTEL_SERVICE_NAME`     | Название сервиса для observability     | `dev-assistant`            |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry Collector endpoint | `http://localhost:4317`    |
-| `RAG_TOP_K`             | Количество возвращаемых фрагментов     | `10`                       |
-| `RAG_CHUNK_SIZE`        | Размер чанка при парсинге кода         | `256`                      |
+| Переменная              | Описание                                   | Значение по умолчанию      |
+|-------------------------|--------------------------------------------|----------------------------|
+| `API_BASE_URL`          | Адрес LiteLLM                              | Обязательно                |
+| `QDRANT_URL`            | Адрес Qdrant                               | Обязательно                |
+| `REDIS_URL`             | Адрес Redis (для Celery, памяти)           | `redis://localhost:6379/0` |
+| `PROXY_URL`             | HTTP-прокси                                | Необязательно, для отладки |
+| `OTEL_SERVICE_NAME`     | Название сервиса для служб observability   | `dev-assistant`            |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Адрес OpenTelemetry Collector        | `http://localhost:4317`    |
+| `RAG_TOP_K`             | Количество возвращаемых фрагментов         | 10                         |
+| `RAG_CHUNK_SIZE`        | Размер фрагмента при обработке файлов кода | 256                        |
 
 ### Root `.env` (vLLM, Airflow, индексация)
 
-| Переменная              | Описание                               | По умолчанию               |
-|-------------------------|----------------------------------------|----------------------------|
-| `VLLM_LLM_MODEL`        | Основная LLM-модель                    | `Qwen/Qwen2.5-3B-Instruct` |
-| `VLLM_LLM_DRAFT_MODEL`  | Черновая модель для Speculative Decoding | -                        |
-| `VLLM_EMB_MODEL`        | Модель эмбеддингов                     | `BAAI/bge-base-en`         |
-| `VLLM_RANK_MODEL`       | Модель ранжирования                    | `BAAI/bge-reranker-v2-m3`  |
-| `VLLM_GPU_DEVICE`       | Номер GPU для vLLM                     | `0`                        |
-| `GITLAB_URL`            | Адрес GitLab для индексации            | -                          |
-| `GITLAB_TOKEN`          | Токен доступа к GitLab                 | -                          |
-| `GITLAB_FILE_FILTER`    | Фильтр файлов (через `;`)              | `*.*`                      |
-| `AIRFLOW_PROJ_DIR`      | Каталог с Airflow-проектом             | `./airflow`                |
+| Переменная              | Описание                                 | Значение по умолчанию      |
+|-------------------------|------------------------------------------|----------------------------|
+| `VLLM_LLM_MODEL`        | Основная LLM-модель                      | Обязательно                |
+| `VLLM_LLM_DRAFT_MODEL`  | Черновая модель для Speculative Decoding | -                          |
+| `VLLM_EMB_MODEL`        | Модель эмбеддингов                       | Обязательно                |
+| `VLLM_RANK_MODEL`       | Модель ранжирования                      | Обязательно                |
+| `VLLM_GPU_DEVICE`       | Номер GPU для vLLM                       | 0                          |
+| `GITLAB_URL`            | Адрес GitLab для индексации              |                            |
+| `GITLAB_TOKEN`          | Токен доступа к GitLab                   |                            |
+| `GITLAB_FILE_FILTER`    | Фильтр файлов для индексации (через `;`) | `*.*`                      |
+| `AIRFLOW_PROJ_DIR`      | Каталог с файлами для Airflow            | `./airflow`                |
 
-## Поддерживаемые языки
+## Службы observability
 
-AST-парсинг для RAG-индексации поддерживает: C#, TypeScript, JavaScript, Python, Go, Java.
-
-## Наблюдаемость
-
-Система включает полный стек observability:
-- **Prometheus** - метрики на порту 9090
-- **Grafana** - дашборды на порту 3000 (анонимный доступ)
-- **Loki** - агрегация логов
-- **Tempo** - трейсы на порту 3200
-- **OTel Collector** - сбор метрик и трасс на портах 4317/4318
+Система включает следующий стек observability:
+- **Prometheus** - сбор метрик (включая vLLM)
+- **Grafana** - дашборды
+- **Loki** - сбор логов
+- **Tempo** - сбор трассировок запросов
+- **OTel Collector** - единая точка сбора метрик, логов, трассировок с сервисов
 
 ## IR-бенчмарк
 
