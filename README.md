@@ -32,7 +32,7 @@ AI-ассистент для разработки ПО представляет 
 | Проксирование   | LiteLLM               |
 | Фронтенд        | Vue, TypeScript       |
 | Парсер          | tree-sitter           |
-| Наблюдаемость   | OpenTelemetry, Prometheus, Grafana, Loki, Tempo  |
+| Observability   | OpenTelemetry, Prometheus, Grafana, Loki, Tempo  |
 
 ## Структура проекта
 
