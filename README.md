@@ -66,21 +66,18 @@ AI-ассистент для разработки ПО представляет 
 │   ├── mock
 │   │   └── api.mock.ts         # Мок для тестирования API
 │   ├── src
-│   │   ├── App.vue
-│   │   ├── FileList.vue
-│   │   ├── HistoryList.vue
-│   │   ├── Messages.vue
-│   │   ├── Prompt.vue
-│   │   ├── Settings.vue
-│   │   ├── additional.d.ts
-│   │   ├── assets
-│   │   │   └── main.css
-│   │   ├── chat.ts
-│   │   ├── debounce.ts
-│   │   ├── events.ts
-│   │   ├── main.ts
-│   │   ├── types.ts
-│   │   └── utils.ts
+│   │   ├── App.vue             # Корневой компонент
+│   │   ├── FileList.vue        # Список файлов проекта (для включения в контекст)
+│   │   ├── HistoryList.vue     # Компонент списка чатов
+│   │   ├── Messages.vue        # Компонент диалога с ассистентом (список сообщения)
+│   │   ├── Prompt.vue          # Компонент поля ввода в диалоге
+│   │   ├── Settings.vue        # Диалог настроек
+│   │   ├── chat.ts             # Функционал чата
+│   │   ├── debounce.ts         # Функция debounce для событий ввода
+│   │   ├── events.ts           # Типы событий
+│   │   ├── main.ts             # Точка входа в приложение
+│   │   ├── types.ts            # Интерфейсы и т.п.
+│   │   └── utils.ts            # Утилитные функции
 ├── etc/                        # Файлы конфигурации (vLLM, LiteLLM, OTel и т.д.)
 └── ir-benchmark/               # Бенчмарк алгоритмов сегментации кода
 │   ├── BuildDataset            # Вспомогательная программа для построения датасета
