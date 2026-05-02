@@ -17,6 +17,11 @@ model_list:
 
 litellm_settings:
   callbacks: ["otel"]
+  cache: true
+  cache_params:
+    type: redis
+    host: redis
+    port: 6379
 
 callback_settings:
   otel:
